@@ -26,7 +26,8 @@ TEST(TrieTest, TrieStructureCheck) {
   auto trie = Trie();
   // Put something
   trie = trie.Put<uint32_t>("test", 233);
-  ASSERT_EQ(*trie.Get<uint32_t>("test"), 233);
+  auto i = trie.Get<uint32_t>("test");
+  ASSERT_EQ(*i, 233);
   // Ensure the trie is the same representation of the writeup
   // (Some students were using '\0' as the terminator in previous semesters)
   auto root = trie.GetRoot();
@@ -158,6 +159,15 @@ TEST(TrieTest, CopyOnWriteTest1) {
   ASSERT_EQ(trie6.Get<uint32_t>("test"), nullptr);
 }
 
+TEST(TrieTest, MyTest) {
+  auto empty_trie = Trie();
+  auto trie1 = empty_trie.Put<uint32_t>("test", 2333);
+  auto trie2 = trie1.Put<uint32_t>("te", 23);
+  auto trie3 = trie2.Put<uint32_t>("tes", 233);
+  auto trie5 = trie3.Put<std::string>("tes", "233");
+  auto trie4 = trie3.Put<std::string>("te", "23");
+}
+
 TEST(TrieTest, CopyOnWriteTest2) {
   auto empty_trie = Trie();
   // Put something
@@ -224,17 +234,20 @@ TEST(TrieTest, MixedTest) {
     std::string key = fmt::format("{:#05}", i);
     std::string value = fmt::format("value-{:#08}", i);
     trie = trie.Put<std::string>(key, value);
+    ASSERT_EQ(*trie.Get<std::string>(key), value);
   }
   auto trie_full = trie;
   for (uint32_t i = 0; i < 23333; i += 2) {
     std::string key = fmt::format("{:#05}", i);
     std::string value = fmt::format("new-value-{:#08}", i);
     trie = trie.Put<std::string>(key, value);
+    ASSERT_EQ(*trie.Get<std::string>(key), value);
   }
   auto trie_override = trie;
   for (uint32_t i = 0; i < 23333; i += 3) {
     std::string key = fmt::format("{:#05}", i);
     trie = trie.Remove(key);
+    ASSERT_EQ(trie.Get<std::string>(key), nullptr);
   }
   auto trie_final = trie;
 
