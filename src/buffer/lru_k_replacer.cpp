@@ -126,7 +126,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable){
       curr_size_++;
     }
     node.SetEvictable(set_evictable);
-    return ;
+    return;
   }
 
   pos = k_history_hash_.find(frame_id);
@@ -146,7 +146,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   std::lock_guard<std::mutex>guard(latch_);
   auto pos = history_hash_.find(frame_id);
   if(pos != history_hash_.end()){
-    auto node = pos->second->second;
+    auto &node = pos->second->second;
     if(node.Evictable()){
       history_hash_.erase(frame_id);
       history_queue_.erase(pos->second);
@@ -159,7 +159,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
 
   pos = k_history_hash_.find(frame_id);
   if(pos != k_history_hash_.end()){
-    auto node = pos->second->second;
+    auto &node = pos->second->second;
     if(node.Evictable()){
       k_history_hash_.erase(frame_id);
       k_history_queue_.erase(pos->second);
