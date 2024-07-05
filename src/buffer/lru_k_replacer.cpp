@@ -51,29 +51,29 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
   auto pos = history_hash_.find(frame_id);
   if(pos != history_hash_.end()){
     //val = <frame_id, Node>
-    auto val = *pos->second;
-    BUSTUB_ASSERT(pos->second != history_queue_.end(), "pos in hash doesn't exists in queue");
 
-    auto node = val.second;
+    BUSTUB_ASSERT(pos->second != history_queue_.end(), "pos in hash doesn't exists in queue");
+    auto &val = *(pos->second);
+    auto &node = val.second;
     node.Access(access_type);
     if(node.Kaccess()){
       //Access more than K times
-
+      auto cp_val = *(pos->second);
       //remove from his queue
       history_queue_.erase(pos->second);
       history_hash_.erase(frame_id);
 
 
       //insert to the front of k_his queue
-      k_history_queue_.emplace_front(val);
+      k_history_queue_.emplace_front(cp_val);
       k_history_hash_[frame_id] = k_history_queue_.begin();
 
     }else{
       //Access less than K times
-
+      auto cp_val = *(pos->second);
       //insert to the front of his queue
       history_queue_.erase(pos->second);
-      history_queue_.emplace_front(val);
+      history_queue_.emplace_front(cp_val);
       history_hash_[frame_id] = history_queue_.begin();
 
     }
@@ -82,12 +82,13 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
 
   pos = k_history_hash_.find(frame_id);
   if(pos != k_history_hash_.end()){
-    auto val = *pos->second;
+    auto &val = *pos->second;
     BUSTUB_ASSERT(pos->second != k_history_queue_.end(), "pos in hash doesn't exists in queue");
-    auto node = val.second;
+    auto &node = val.second;
     node.Access(access_type);
+    auto cp_val = *(pos->second);
     k_history_queue_.erase(pos->second);
-    k_history_queue_.emplace_front(val);
+    k_history_queue_.emplace_front(cp_val);
     k_history_hash_[frame_id] = k_history_queue_.begin();
     return ;
   }
