@@ -26,14 +26,20 @@ namespace bustub {
 enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 class LRUKNode {
+ public:
+
+  LRUKNode(frame_id_t frame_id, size_t k_):k_(k_),fid_(frame_id){};
+  void SetEvictable(bool evictable);
+  void Access([[maybe_unused]] AccessType accessType);
+  auto Evictable() -> bool;
+  auto Kaccess() -> bool;
  private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
-
-  [[maybe_unused]] std::list<size_t> history_;
-  [[maybe_unused]] size_t k_;
-  [[maybe_unused]] frame_id_t fid_;
-  [[maybe_unused]] bool is_evictable_{false};
+  size_t access_time_{};
+  size_t k_{};
+  frame_id_t fid_{};
+  bool is_evictable_{false};
 };
 
 /**
@@ -56,8 +62,7 @@ class LRUKReplacer {
    * @brief a new LRUKReplacer.
    * @param num_frames the maximum number of frames the LRUReplacer will be required to store
    */
-  explicit LRUKReplacer(size_t num_frames, size_t k);
-
+  explicit LRUKReplacer(size_t num_frames, size_t k):replacer_size_(num_frames),k_(k){};
   DISALLOW_COPY_AND_MOVE(LRUKReplacer);
 
   /**
@@ -145,17 +150,22 @@ class LRUKReplacer {
    *
    * @return size_t
    */
-  auto Size() -> size_t;
+  auto Size() -> size_t{
+    return curr_size_;
+  }
 
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-  [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
-  [[maybe_unused]] size_t current_timestamp_{0};
-  [[maybe_unused]] size_t curr_size_{0};
-  [[maybe_unused]] size_t replacer_size_;
-  [[maybe_unused]] size_t k_;
-  [[maybe_unused]] std::mutex latch_;
+  std::list<std::pair<frame_id_t, LRUKNode>> history_queue_;
+  std::unordered_map<frame_id_t, decltype(history_queue_.begin())> history_hash_;
+  std::list<std::pair<frame_id_t, LRUKNode>> k_history_queue_;
+  std::unordered_map<frame_id_t, decltype(history_queue_.begin())> k_history_hash_;
+  size_t current_timestamp_{0};
+  size_t curr_size_{0};
+  size_t replacer_size_;
+  size_t k_;
+  std::mutex latch_;
 };
 
 }  // namespace bustub
