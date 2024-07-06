@@ -16,8 +16,9 @@
 #include <list>
 #include <mutex>  // NOLINT
 #include <unordered_map>
+#include <set>
 #include <vector>
-
+#include <functional>
 #include "common/config.h"
 #include "common/macros.h"
 
@@ -30,16 +31,19 @@ class LRUKNode {
 
   LRUKNode(frame_id_t frame_id, size_t k_):k_(k_),fid_(frame_id){};
   void SetEvictable(bool evictable);
-  void Access([[maybe_unused]] AccessType accessType);
-  auto Evictable() -> bool;
-  auto Kaccess() -> bool;
+  void Access([[maybe_unused]] AccessType accessType, size_t access_time);
+  auto Evictable() const -> bool;
+  auto Kaccess() const -> bool;
+  auto GetFid() const -> frame_id_t ;
+  size_t KthAccessTime() const;
  private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
-  size_t access_time_{};
+  size_t access_time_{0};
   size_t k_{};
   frame_id_t fid_{};
   bool is_evictable_{false};
+  std::list<size_t> history_access_{};
 };
 
 /**
@@ -157,10 +161,17 @@ class LRUKReplacer {
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
+  class LRUKNodeCompare {
+   public:
+    bool operator()(const LRUKNode &left, const LRUKNode &right) const
+    { return left.KthAccessTime() < right.KthAccessTime(); }
+  };
+
   std::list<std::pair<frame_id_t, LRUKNode>> history_queue_;
   std::unordered_map<frame_id_t, decltype(history_queue_.begin())> history_hash_;
-  std::list<std::pair<frame_id_t, LRUKNode>> k_history_queue_;
-  std::unordered_map<frame_id_t, decltype(history_queue_.begin())> k_history_hash_;
+  std::set<LRUKNode, LRUKNodeCompare> cache_queue_;
+  std::unordered_map<frame_id_t, decltype(cache_queue_.begin())> cache_queue_hash_;
+
   size_t current_timestamp_{0};
   size_t curr_size_{0};
   size_t replacer_size_;

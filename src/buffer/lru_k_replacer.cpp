@@ -28,12 +28,12 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       }
   }
 
-  for (auto it = k_history_queue_.rbegin();it != k_history_queue_.rend();it++){
-      if(it->second.Evictable()){
-        *frame_id = it->first;
-        auto pos = k_history_hash_.find(*frame_id);
-        k_history_queue_.erase(pos->second);
-        k_history_hash_.erase(*frame_id);
+  for (auto it = cache_queue_.begin();it != cache_queue_.end();it++){
+//      auto node = *it.base();
+      if(it->Evictable()){
+        *frame_id = it->GetFid();
+        cache_queue_.erase(it);
+        cache_queue_hash_.erase(*frame_id);
         curr_size_--;
         return true;
       }
@@ -44,18 +44,18 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   std::lock_guard<std::mutex>guard(latch_);
+  current_timestamp_++;
   if(static_cast<size_t>(frame_id) > replacer_size_){
     BUSTUB_ASSERT(0, "Frame id invalid!");
   }
   //If frame is in (< k) history queue
   auto pos = history_hash_.find(frame_id);
   if(pos != history_hash_.end()){
-    //val = <frame_id, Node>
-
+    //val = <frame_id, Node>v
     BUSTUB_ASSERT(pos->second != history_queue_.end(), "pos in hash doesn't exists in queue");
     auto &val = *(pos->second);
     auto &node = val.second;
-    node.Access(access_type);
+    node.Access(access_type, current_timestamp_);
     if(node.Kaccess()){
       //Access more than K times
       auto cp_val = *(pos->second);
@@ -63,48 +63,46 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
       history_queue_.erase(pos->second);
       history_hash_.erase(frame_id);
 
-
-      //insert to the front of k_his queue
-      k_history_queue_.emplace_front(cp_val);
-      k_history_hash_[frame_id] = k_history_queue_.begin();
-
-    }else{
-      //Using FIFO
-
-//      //Access less than K times
-//      auto cp_val = *(pos->second);
-//      //insert to the front of his queue
-//      history_queue_.erase(pos->second);
-//      history_queue_.emplace_front(cp_val);
-//      history_hash_[frame_id] = history_queue_.begin();
+      //insert to cache queue
+      auto insert_res = cache_queue_.insert(cp_val.second);
+      if(insert_res.second){
+         cache_queue_hash_[frame_id] = insert_res.first;
+      }else{
+         BUSTUB_ASSERT(1, "Insert to cache queue fail!");
+      }
 
     }
     return ;
   }
 
-  pos = k_history_hash_.find(frame_id);
-  if(pos != k_history_hash_.end()){
-    auto &val = *pos->second;
-    BUSTUB_ASSERT(pos->second != k_history_queue_.end(), "pos in hash doesn't exists in queue");
-    auto &node = val.second;
-    node.Access(access_type);
-    auto cp_val = *(pos->second);
-    k_history_queue_.erase(pos->second);
-    k_history_queue_.emplace_front(cp_val);
-    k_history_hash_[frame_id] = k_history_queue_.begin();
+  auto cache_pos = cache_queue_hash_.find(frame_id);
+  if(cache_pos != cache_queue_hash_.end()){
+    LRUKNode cp_node = *cache_pos->second;
+    cp_node.Access(access_type, current_timestamp_);
+    cache_queue_.erase(cache_pos->second);
+    cache_queue_hash_.erase(frame_id);
+    auto insert_res = cache_queue_.insert(cp_node);
+    if(insert_res.second){
+      cache_queue_hash_[frame_id] = insert_res.first;
+    }else{
+      BUSTUB_ASSERT(1, "Insert to cache queue fail!");
+    }
     return ;
   }
 
 
-  //Remove from node_store
   auto node = LRUKNode(frame_id, k_);
-  node.Access(access_type);
+  node.Access(access_type, current_timestamp_);
 
   //insert to the history_queue
   if(node.Kaccess()){
     //Access more than K times
-    k_history_queue_.emplace_front(frame_id, node);
-    k_history_hash_[frame_id] = k_history_queue_.begin();
+    auto insert_res = cache_queue_.insert(node);
+    if(insert_res.second){
+      cache_queue_hash_[frame_id] = insert_res.first;
+    }else{
+      BUSTUB_ASSERT(1, "Insert to cache queue fail!");
+    }
 
   }else{
     //Access less than K times
@@ -131,15 +129,22 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable){
     return;
   }
 
-  pos = k_history_hash_.find(frame_id);
-  if(pos != k_history_hash_.end()){
-    auto &node = pos->second->second;
+  auto cache_pos = cache_queue_hash_.find(frame_id);
+  if(cache_pos->second != cache_queue_.end()){
+    auto node = *cache_pos->second;
     if(node.Evictable() && !set_evictable){
       curr_size_--;
     }else if(!node.Evictable() && set_evictable){
       curr_size_++;
     }
     node.SetEvictable(set_evictable);
+    cache_queue_.erase(cache_pos->second);
+    auto insert_res = cache_queue_.insert(node);
+    if(insert_res.second){
+      cache_queue_hash_[frame_id] = insert_res.first;
+    }else{
+      BUSTUB_ASSERT(1, "Insert to cache queue fail!");
+    }
     return ;
   }
 }
@@ -159,12 +164,12 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
 
   }
 
-  pos = k_history_hash_.find(frame_id);
-  if(pos != k_history_hash_.end()){
-    auto &node = pos->second->second;
+  auto cache_pos = cache_queue_hash_.find(frame_id);
+  if(cache_pos->second != cache_queue_.end()){
+    auto &node = *cache_pos->second;
     if(node.Evictable()){
-      k_history_hash_.erase(frame_id);
-      k_history_queue_.erase(pos->second);
+      cache_queue_.erase(cache_pos->second);
+      cache_queue_hash_.erase(frame_id);
       curr_size_--;
       return ;
     }
@@ -177,16 +182,19 @@ void LRUKNode::SetEvictable(bool evictable) {
   is_evictable_ = evictable;
 }
 
-void LRUKNode::Access(AccessType accessType) {
+void LRUKNode::Access(AccessType accessType, size_t access_time) {
   access_time_ += 1;
+  if(access_time_ > k_){
+    history_access_.pop_back();
+    history_access_.push_front(access_time);
+  }else{
+    history_access_.push_front(access_time);
+  }
 }
 
-auto LRUKNode::Kaccess() -> bool {
-  return access_time_ >= k_;
-}
-
-auto LRUKNode::Evictable() -> bool {
-  return is_evictable_;
-}
+auto LRUKNode::Kaccess() const -> bool {return access_time_ >= k_;}
+auto LRUKNode::Evictable() const -> bool {return is_evictable_;}
+auto LRUKNode::KthAccessTime() const -> size_t { return *history_access_.rbegin(); }
+auto LRUKNode::GetFid() const -> frame_id_t { return fid_; }
 
 }  // namespace bustub
