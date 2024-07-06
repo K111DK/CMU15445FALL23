@@ -69,12 +69,14 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
       k_history_hash_[frame_id] = k_history_queue_.begin();
 
     }else{
-      //Access less than K times
-      auto cp_val = *(pos->second);
-      //insert to the front of his queue
-      history_queue_.erase(pos->second);
-      history_queue_.emplace_front(cp_val);
-      history_hash_[frame_id] = history_queue_.begin();
+      //Using FIFO
+
+//      //Access less than K times
+//      auto cp_val = *(pos->second);
+//      //insert to the front of his queue
+//      history_queue_.erase(pos->second);
+//      history_queue_.emplace_front(cp_val);
+//      history_hash_[frame_id] = history_queue_.begin();
 
     }
     return ;

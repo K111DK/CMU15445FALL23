@@ -31,7 +31,6 @@ DiskScheduler::~DiskScheduler() {
   if (background_thread_.has_value()) {
     background_thread_->join();
   }
-  done = true;
 }
 
 void DiskScheduler::Schedule(DiskRequest r) {
