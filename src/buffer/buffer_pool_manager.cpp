@@ -22,9 +22,9 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
                                      LogManager *log_manager)
     : pool_size_(pool_size), disk_scheduler_(std::make_unique<DiskScheduler>(disk_manager)), log_manager_(log_manager) {
   // TODO(students): remove this line after you have implemented the buffer pool manager
-  throw NotImplementedException(
-      "BufferPoolManager is not implemented yet. If you have finished implementing BPM, please remove the throw "
-      "exception line in `buffer_pool_manager.cpp`.");
+//  throw NotImplementedException(
+//      "BufferPoolManager is not implemented yet. If you have finished implementing BPM, please remove the throw "
+//      "exception line in `buffer_pool_manager.cpp`.");
 
   // we allocate a consecutive memory space for the buffer pool
   pages_ = new Page[pool_size_];
@@ -38,21 +38,199 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 
 BufferPoolManager::~BufferPoolManager() { delete[] pages_; }
 
-auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * { return nullptr; }
+auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
+
+  if(free_list_.empty()){
+    frame_id_t victim_frame_id;
+    if(replacer_->Evict(&victim_frame_id)){
+      auto &victim_page = pages_[victim_frame_id];
+      if(victim_page.is_dirty_){
+        FlushPage(victim_page.page_id_);
+      }
+      auto new_page_id = AllocatePage();
+      page_table_[new_page_id] = victim_frame_id;
+      *page_id = new_page_id;
+      pages_[victim_frame_id].page_id_ = new_page_id;
+      pages_[victim_frame_id].is_dirty_ = false;
+      pages_[victim_frame_id].pin_count_ = 1;
+
+      replacer_->RecordAccess(victim_frame_id, AccessType::Unknown);
+      replacer_->SetEvictable(victim_frame_id, false);
+      return &pages_[victim_frame_id];
+    }
+    return nullptr;
+  }
+
+  frame_id_t free_frame_id = *free_list_.begin();
+  free_list_.pop_front();
+
+  replacer_->RecordAccess(free_frame_id, AccessType::Unknown);
+  replacer_->SetEvictable(free_frame_id, false);
+
+  auto new_page_id = AllocatePage();
+  *page_id = new_page_id;
+  page_table_[new_page_id] = free_frame_id;
+  pages_[free_frame_id].pin_count_ = 1;
+  pages_[free_frame_id].is_dirty_ = false;
+  pages_[free_frame_id].page_id_ = new_page_id;
+
+
+  return &pages_[free_frame_id];
+}
 
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
-  return nullptr;
+  //1. Find page_id in pool
+  //   if found:
+  //      if not pinned:
+  //         return
+  //
+  auto res = page_table_.find(page_id);
+  if(res != page_table_.end()){
+    auto frame_id = (*res).second;
+    auto &page = pages_[frame_id];
+    if(page.page_id_ == page_id){
+      page.pin_count_++;
+      return &pages_[frame_id];
+    }
+  }
+
+  if(free_list_.empty()){
+    frame_id_t victim_frame_id;
+    if(replacer_->Evict(&victim_frame_id)){
+
+      page_table_[page_id] = victim_frame_id;
+      auto &victim_page = pages_[victim_frame_id];
+
+      if(victim_page.is_dirty_){
+        FlushPage(victim_page.page_id_);
+      }
+
+      auto promise1 = disk_scheduler_->CreatePromise();
+      auto future1 = promise1.get_future();
+      disk_scheduler_->Schedule(
+          {false, victim_page.data_, page_id, std::move(promise1)}
+      );
+      future1.get();
+
+
+      victim_page.page_id_ = page_id;
+      victim_page.is_dirty_ = false;
+      victim_page.pin_count_ = 1;
+
+      replacer_->RecordAccess(victim_frame_id, AccessType::Unknown);
+      replacer_->SetEvictable(victim_frame_id, false);
+      return &pages_[victim_frame_id];
+    }
+    return nullptr;
+  }
+
+  frame_id_t free_frame_id = *free_list_.begin();
+  free_list_.pop_front();
+
+  replacer_->RecordAccess(free_frame_id, AccessType::Unknown);
+  replacer_->SetEvictable(free_frame_id, false);
+
+  page_table_[page_id] = free_frame_id;
+  auto &page = pages_[free_frame_id];
+
+  auto promise1 = disk_scheduler_->CreatePromise();
+  auto future1 = promise1.get_future();
+  disk_scheduler_->Schedule(
+      {false, page.data_, page_id, std::move(promise1)}
+  );
+  future1.get();
+
+  page.pin_count_ = 1;
+  page.is_dirty_ = false;
+
+  return &pages_[free_frame_id];
 }
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
+  auto res = page_table_.find(page_id);
+  if(res != page_table_.end()){
+    auto frame_id = (*res).second;
+    auto &page = pages_[frame_id];
+    if(page.pin_count_ <= 0){
+      return false;
+    }
+
+    page.pin_count_--;
+    if(page.pin_count_ == 0){
+      replacer_->SetEvictable(frame_id, true);
+    }
+
+    page.is_dirty_ = is_dirty;
+    return true;
+  }
   return false;
 }
 
-auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { return false; }
+auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
+  auto res = page_table_.find(page_id);
+  if(res != page_table_.end()){
+    auto frame_id = (*res).second;
+    auto &page = pages_[frame_id];
+    if(page.page_id_ == page_id){
+      auto promise1 = disk_scheduler_->CreatePromise();
+      auto future1 = promise1.get_future();
+      disk_scheduler_->Schedule(
+          {true, page.data_, page.page_id_, std::move(promise1)}
+      );
+      future1.get();
+      page.is_dirty_ = false;
+      return true;
+    }
+  }
+  return false;
+}
 
-void BufferPoolManager::FlushAllPages() {}
+void BufferPoolManager::FlushAllPages() {
+  std::vector<std::future<bool>> flush_future{};
+  for(size_t frame_id = 0; frame_id < pool_size_; ++frame_id){
+      auto &page = pages_[frame_id];
+      auto promise1 = disk_scheduler_->CreatePromise();
+      auto future1 = promise1.get_future();
+      disk_scheduler_->Schedule(
+          {true, page.data_, page.page_id_, std::move(promise1)}
+      );
+      flush_future.push_back(std::move(future1));
+  }
 
-auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { return false; }
+  //sync
+  for(auto &future:flush_future){
+      future.get();
+  }
+
+  //change dirty state
+  for(size_t frame_id = 0; frame_id < pool_size_; ++frame_id){
+      auto &page = pages_[frame_id];
+      page.is_dirty_ = false;
+  }
+}
+
+auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
+  auto res = page_table_.find(page_id);
+  if(res != page_table_.end()){
+      auto frame_id = (*res).second;
+      auto &page = pages_[frame_id];
+      if(page.page_id_ == page_id){
+        if(page.pin_count_ == 0){
+            page_table_.erase(page_id);
+            replacer_->Remove(frame_id);
+            DeallocatePage(page_id);
+            free_list_.push_front(frame_id);
+            page.ResetMemory();
+            page.is_dirty_ = false;
+            return true;
+        }
+        //inevitable
+        return false;
+      }
+  }
+  //not found in page_table or bufferPool
+  return true;
+}
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
