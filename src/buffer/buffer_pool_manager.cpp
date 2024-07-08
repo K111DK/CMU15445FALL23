@@ -74,7 +74,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   pages_[free_frame_id].is_dirty_ = false;
   pages_[free_frame_id].page_id_ = new_page_id;
 
-
   return &pages_[free_frame_id];
 }
 
