@@ -222,12 +222,14 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
       auto &page = pages_[frame_id];
       if(page.page_id_ == page_id){
         if(page.pin_count_ == 0){
+            FlushPage(page.page_id_);
             page_table_.erase(page_id);
             replacer_->Remove(frame_id);
             DeallocatePage(page_id);
             free_list_.push_front(frame_id);
             page.ResetMemory();
             page.is_dirty_ = false;
+            free_list_.push_front(frame_id);
             return true;
         }
         //inevitable

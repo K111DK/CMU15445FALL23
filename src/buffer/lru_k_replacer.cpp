@@ -156,8 +156,8 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   if(pos != history_hash_.end()){
     auto &node = pos->second->second;
     if(node.Evictable()){
-      history_hash_.erase(frame_id);
       history_queue_.erase(pos->second);
+      history_hash_.erase(frame_id);
       curr_size_--;
       return ;
     }
