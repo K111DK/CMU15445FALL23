@@ -158,12 +158,16 @@ class LRUKReplacer {
     return curr_size_;
   }
 
+  auto IsFull() const -> bool{
+    return curr_size_ >= replacer_size_;
+  }
+
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
   class LRUKNodeCompare {
    public:
-    bool operator()(const LRUKNode &left, const LRUKNode &right) const
+    auto operator()(const LRUKNode &left, const LRUKNode &right) const -> bool
     { return left.KthAccessTime() < right.KthAccessTime(); }
   };
 

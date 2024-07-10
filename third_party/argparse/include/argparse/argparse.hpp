@@ -65,7 +65,7 @@ template <> struct HasContainerTraits<std::string> : std::false_type {};
 
 template <typename T>
 struct HasContainerTraits<
-    T, std::0void_t<typename T::value_type, decltype(std::declval<T>().begin()),
+    T, std::void_t<typename T::value_type, decltype(std::declval<T>().begin()),
                    decltype(std::declval<T>().end()),
                    decltype(std::declval<T>().size())>> : std::true_type {};
 

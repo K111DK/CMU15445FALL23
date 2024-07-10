@@ -45,7 +45,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   std::lock_guard<std::mutex>guard(latch_);
   current_timestamp_++;
-  if(static_cast<size_t>(frame_id) > replacer_size_){
+  if(static_cast<size_t>(frame_id) >= replacer_size_){
     BUSTUB_ASSERT(0, "Frame id invalid!");
   }
   //If frame is in (< k) history queue
@@ -115,7 +115,7 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable){
   std::lock_guard<std::mutex>guard(latch_);
   if(static_cast<size_t>(frame_id) > replacer_size_){
-    BUSTUB_ASSERT(0, "Frame id invalid!");
+    BUSTUB_ASSERT(1, "Frame id invalid!");
   }
   auto pos = history_hash_.find(frame_id);
   if(pos != history_hash_.end()){
@@ -130,7 +130,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable){
   }
 
   auto cache_pos = cache_queue_hash_.find(frame_id);
-  if(cache_pos->second != cache_queue_.end()){
+  if(cache_pos != cache_queue_hash_.end()){
     auto node = *cache_pos->second;
     if(node.Evictable() && !set_evictable){
       curr_size_--;
@@ -147,6 +147,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable){
     }
     return ;
   }
+  BUSTUB_ASSERT(1, "Frame id invalid!");
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
@@ -160,7 +161,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
       curr_size_--;
       return ;
     }
-    BUSTUB_ASSERT(1, "Try evict inevitable frame");
+    BUSTUB_ASSERT(0, "Try evict inevitable frame");
 
   }
 
@@ -173,7 +174,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
       curr_size_--;
       return ;
     }
-    BUSTUB_ASSERT(1, "Try evict inevitable frame");
+    BUSTUB_ASSERT(0, "Try evict inevitable frame");
 
   }
 }
