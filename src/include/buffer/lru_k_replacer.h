@@ -12,13 +12,13 @@
 
 #pragma once
 
+#include <functional>
 #include <limits>
 #include <list>
 #include <mutex>  // NOLINT
-#include <unordered_map>
 #include <set>
+#include <unordered_map>
 #include <vector>
-#include <functional>
 #include "common/config.h"
 #include "common/macros.h"
 
@@ -28,14 +28,14 @@ enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 class LRUKNode {
  public:
-
-  LRUKNode(frame_id_t frame_id, size_t k_):k_(k_),fid_(frame_id){};
+  LRUKNode(frame_id_t frame_id, size_t k_) : k_(k_), fid_(frame_id){};
   void SetEvictable(bool evictable);
   void Access([[maybe_unused]] AccessType accessType, size_t access_time);
   auto Evictable() const -> bool;
   auto Kaccess() const -> bool;
-  auto GetFid() const -> frame_id_t ;
-  size_t KthAccessTime() const;
+  auto GetFid() const -> frame_id_t;
+  auto KthAccessTime() const -> size_t;
+
  private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
@@ -66,7 +66,7 @@ class LRUKReplacer {
    * @brief a new LRUKReplacer.
    * @param num_frames the maximum number of frames the LRUReplacer will be required to store
    */
-  explicit LRUKReplacer(size_t num_frames, size_t k):replacer_size_(num_frames),k_(k){};
+  explicit LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k){};
   DISALLOW_COPY_AND_MOVE(LRUKReplacer);
 
   /**
@@ -154,21 +154,18 @@ class LRUKReplacer {
    *
    * @return size_t
    */
-  auto Size() -> size_t{
-    return curr_size_;
-  }
+  auto Size() -> size_t { return curr_size_; }
 
-  auto IsFull() const -> bool{
-    return curr_size_ >= replacer_size_;
-  }
+  auto IsFull() const -> bool { return curr_size_ >= replacer_size_; }
 
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
   class LRUKNodeCompare {
    public:
-    auto operator()(const LRUKNode &left, const LRUKNode &right) const -> bool
-    { return left.KthAccessTime() < right.KthAccessTime(); }
+    auto operator()(const LRUKNode &left, const LRUKNode &right) const -> bool {
+      return left.KthAccessTime() < right.KthAccessTime();
+    }
   };
 
   std::list<std::pair<frame_id_t, LRUKNode>> history_queue_;

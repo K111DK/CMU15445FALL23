@@ -48,18 +48,18 @@ class StringExpression : public AbstractExpression {
     auto str = val;
     switch (expr_type_) {
       case StringExpressionType::Lower:
-        for(auto &c: str){
+        for (auto &c : str) {
           c = static_cast<char>(tolower(c));
         }
-        break ;
+        break;
       case StringExpressionType::Upper:
-        for(auto &c: str){
+        for (auto &c : str) {
           c = static_cast<char>(toupper(c));
         }
-        break ;
+        break;
       default:
 
-        break ;
+        break;
     }
     return str;
   }

@@ -16,7 +16,7 @@ auto TrieStore::Get(std::string_view key) -> std::optional<ValueGuard<T>> {
   root_lock_.unlock();
 
   auto val = tire.Get<T>(key);
-  if(val == nullptr){
+  if (val == nullptr) {
     return std::nullopt;
   }
   return ValueGuard(tire, *val);
@@ -32,7 +32,6 @@ void TrieStore::Put(std::string_view key, T value) {
   auto trie = root_;
   root_lock_.unlock();
 
-
   auto new_trie = trie.Put<T>(key, std::move(value));
 
   root_lock_.lock();
@@ -40,7 +39,6 @@ void TrieStore::Put(std::string_view key, T value) {
   root_lock_.unlock();
 
   write_lock_.unlock();
-
 }
 
 void TrieStore::Remove(std::string_view key) {
@@ -50,8 +48,6 @@ void TrieStore::Remove(std::string_view key) {
   root_lock_.lock();
   auto trie = root_;
   root_lock_.unlock();
-
-
 
   auto new_trie = trie.Remove(key);
   root_lock_.lock();

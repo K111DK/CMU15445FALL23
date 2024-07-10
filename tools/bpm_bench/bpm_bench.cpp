@@ -130,7 +130,7 @@ auto CheckPageConsistent(const char *data, size_t page_idx, uint64_t seed) -> vo
   const auto *pg = reinterpret_cast<const BustubBenchPageHeader *>(data);
   if (pg->seed_ != seed) {
     fmt::println(stderr, "page seed not consistent: seed_={} seed={}", pg->seed_, seed);
-    //std::terminate();
+    std::terminate();
   }
   CheckPageConsistentNoSeed(data, page_idx);
 }
@@ -169,12 +169,12 @@ auto main(int argc, char **argv) -> int {
     enable_latency = std::stoi(program.get("--latency"));
   }
 
-  uint64_t scan_thread_n = 1;
+  uint64_t scan_thread_n = 16;
   if (program.present("--scan-thread-n")) {
     scan_thread_n = std::stoi(program.get("--scan-thread-n"));
   }
 
-  uint64_t get_thread_n = 8;
+  uint64_t get_thread_n = 16;
   if (program.present("--get-thread-n")) {
     get_thread_n = std::stoi(program.get("--get-thread-n"));
   }
@@ -251,7 +251,11 @@ auto main(int argc, char **argv) -> int {
         ModifyPage(page->GetData(), page_idx, seed);
         page->WUnlatch();
 
-        bpm->UnpinPage(page->GetPageId(), true, AccessType::Scan);
+        BUSTUB_ASSERT(
+            bpm->UnpinPage(page->GetPageId(), true, AccessType::Scan)
+            , "Unpin error"
+            );
+
         page_idx += 1;
         if (page_idx >= page_idx_end) {
           page_idx = page_idx_start;
@@ -285,7 +289,11 @@ auto main(int argc, char **argv) -> int {
         CheckPageConsistentNoSeed(page->GetData(), page_idx);
         page->RUnlatch();
 
-        bpm->UnpinPage(page->GetPageId(), false, AccessType::Lookup);
+        BUSTUB_ASSERT(
+                bpm->UnpinPage(page->GetPageId(), false, AccessType::Lookup)
+                ,"Unpin error"
+            );
+
         metrics.Tick();
         metrics.Report();
       }
