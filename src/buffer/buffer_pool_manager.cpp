@@ -81,6 +81,9 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
 
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
   std::lock_guard<std::mutex> guard(latch_);
+  if(page_id == INVALID_PAGE_ID){
+    return nullptr;
+  }
   auto res = page_table_.find(page_id);
   if (res != page_table_.end()) {
     auto frame_id = (*res).second;
@@ -141,6 +144,9 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
   std::lock_guard<std::mutex> guard(latch_);
+  if(page_id == INVALID_PAGE_ID){
+    return false;
+  }
   auto res = page_table_.find(page_id);
   if (res != page_table_.end()) {
     auto frame_id = (*res).second;
@@ -164,6 +170,9 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
 
 auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   auto res = page_table_.find(page_id);
+  if(page_id == INVALID_PAGE_ID){
+    return false;
+  }
   if (res != page_table_.end()) {
     auto frame_id = (*res).second;
     auto &page = pages_[frame_id];
@@ -204,6 +213,9 @@ void BufferPoolManager::FlushAllPages() {
 
 auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   std::lock_guard<std::mutex> guard(latch_);
+  if(page_id == INVALID_PAGE_ID){
+    return false;
+  }
   auto res = page_table_.find(page_id);
   if (res != page_table_.end()) {
     auto frame_id = (*res).second;
