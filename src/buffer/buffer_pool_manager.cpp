@@ -47,6 +47,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
       if (victim_page.is_dirty_) {
         FlushPage(victim_page.page_id_);
       }
+      page_table_.erase(victim_page.page_id_);
       auto new_page_id = AllocatePage();
       victim_page.page_id_ = new_page_id;
       victim_page.is_dirty_ = false;
@@ -96,16 +97,15 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
     frame_id_t victim_frame_id;
     if (replacer_->Evict(&victim_frame_id)) {
       auto &victim_page = pages_[victim_frame_id];
-      page_table_.erase(victim_page.page_id_);
-      page_table_[page_id] = victim_frame_id;
-
       if (victim_page.is_dirty_) {
         FlushPage(victim_page.page_id_);
       }
+      page_table_.erase(victim_page.page_id_);
+      page_table_[page_id] = victim_frame_id;
       victim_page.ResetMemory();
       auto promise1 = disk_scheduler_->CreatePromise();
       auto future1 = promise1.get_future();
-      disk_scheduler_->Schedule({false, victim_page.data_, page_id, std::move(promise1)});
+      disk_scheduler_->Schedule({false, victim_page.GetData(), page_id, std::move(promise1)});
       future1.get();
       victim_page.page_id_ = page_id;
       victim_page.is_dirty_ = false;
@@ -133,7 +133,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 
   auto promise1 = disk_scheduler_->CreatePromise();
   auto future1 = promise1.get_future();
-  disk_scheduler_->Schedule({false, page.data_, page.page_id_, std::move(promise1)});
+  disk_scheduler_->Schedule({false, page.GetData(), page.GetPageId(), std::move(promise1)});
   future1.get();
 
   return &pages_[free_frame_id];
