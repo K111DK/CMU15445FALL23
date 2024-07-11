@@ -151,18 +151,19 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   if (res != page_table_.end()) {
     auto frame_id = (*res).second;
     auto &page = pages_[frame_id];
+    if (page.page_id_ == page_id) {
+      if (page.pin_count_ <= 0) {
+        return false;
+      }
 
-    if (page.pin_count_ <= 0) {
-      return false;
+      page.pin_count_--;
+      if (page.pin_count_ == 0) {
+        replacer_->SetEvictable(frame_id, true);
+      }
+
+      page.is_dirty_ = page.is_dirty_ || is_dirty;
+      return true;
     }
-
-    page.pin_count_--;
-    if (page.pin_count_ == 0) {
-      replacer_->SetEvictable(frame_id, true);
-    }
-
-    page.is_dirty_ = page.is_dirty_ || is_dirty;
-    return true;
   }
   return false;
 }
@@ -196,7 +197,7 @@ void BufferPoolManager::FlushAllPages() {
     auto promise1 = disk_scheduler_->CreatePromise();
     auto future1 = promise1.get_future();
     disk_scheduler_->Schedule({true, page.data_, page.page_id_, std::move(promise1)});
-    flush_future.push_back(std::move(future1));
+    flush_future.emplace_back(std::move(future1));
   }
 
   // sync
@@ -226,7 +227,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
         page_table_.erase(page_id);
         replacer_->Remove(frame_id);
         DeallocatePage(page_id);
-        // free_list_.push_front(frame_id);
         page.ResetMemory();
         free_list_.push_front(frame_id);
         return true;

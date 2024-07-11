@@ -250,7 +250,7 @@ auto main(int argc, char **argv) -> int {
         seed = seed + 1;
         ModifyPage(page->GetData(), page_idx, seed);
         page->WUnlatch();
-
+        bpm->FlushAllPages();
         BUSTUB_ASSERT(
             bpm->UnpinPage(page->GetPageId(), true, AccessType::Scan)
             , "Unpin error"
