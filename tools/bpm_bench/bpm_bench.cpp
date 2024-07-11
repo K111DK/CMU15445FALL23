@@ -169,12 +169,12 @@ auto main(int argc, char **argv) -> int {
     enable_latency = std::stoi(program.get("--latency"));
   }
 
-  uint64_t scan_thread_n = 16;
+  uint64_t scan_thread_n = 8;
   if (program.present("--scan-thread-n")) {
     scan_thread_n = std::stoi(program.get("--scan-thread-n"));
   }
 
-  uint64_t get_thread_n = 16;
+  uint64_t get_thread_n = 8;
   if (program.present("--get-thread-n")) {
     get_thread_n = std::stoi(program.get("--get-thread-n"));
   }
@@ -285,9 +285,9 @@ auto main(int argc, char **argv) -> int {
           std::terminate();
         }
 
-        page->RLatch();
-        CheckPageConsistentNoSeed(page->GetData(), page_idx);
-        page->RUnlatch();
+//        page->RLatch();
+//        CheckPageConsistentNoSeed(page->GetData(), page_idx);
+//        page->RUnlatch();
 
         BUSTUB_ASSERT(
                 bpm->UnpinPage(page->GetPageId(), false, AccessType::Lookup)

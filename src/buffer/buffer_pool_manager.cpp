@@ -51,9 +51,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
       victim_page.page_id_ = new_page_id;
       victim_page.is_dirty_ = false;
       victim_page.pin_count_ = 1;
-      victim_page.ResetMemory();
       page_table_[new_page_id] = victim_frame_id;
-      *page_id = new_page_id;
       *page_id = new_page_id;
 
       replacer_->RecordAccess(victim_frame_id, AccessType::Unknown);
@@ -64,7 +62,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   }
 
   frame_id_t free_frame_id = *free_list_.begin();
-  free_list_.pop_front();
+  free_list_.erase(free_list_.begin());
 
   replacer_->RecordAccess(free_frame_id, AccessType::Unknown);
   // replacer_->SetEvictable(free_frame_id, false);
@@ -97,8 +95,9 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   if (free_list_.empty()) {
     frame_id_t victim_frame_id;
     if (replacer_->Evict(&victim_frame_id)) {
-      page_table_[page_id] = victim_frame_id;
       auto &victim_page = pages_[victim_frame_id];
+      page_table_.erase(victim_page.page_id_);
+      page_table_[page_id] = victim_frame_id;
 
       if (victim_page.is_dirty_) {
         FlushPage(victim_page.page_id_);
@@ -120,7 +119,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   }
 
   frame_id_t free_frame_id = *free_list_.begin();
-  free_list_.pop_front();
+  free_list_.erase(free_list_.begin());
 
   replacer_->RecordAccess(free_frame_id, AccessType::Unknown);
   // replacer_->SetEvictable(free_frame_id, false);
@@ -134,7 +133,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 
   auto promise1 = disk_scheduler_->CreatePromise();
   auto future1 = promise1.get_future();
-  disk_scheduler_->Schedule({false, page.data_, page_id, std::move(promise1)});
+  disk_scheduler_->Schedule({false, page.data_, page.page_id_, std::move(promise1)});
   future1.get();
 
   return &pages_[free_frame_id];
@@ -156,7 +155,7 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
         replacer_->SetEvictable(frame_id, true);
       }
 
-      page.is_dirty_ = is_dirty;
+      page.is_dirty_ = page.is_dirty_ || is_dirty;
       return true;
     }
   }
@@ -217,7 +216,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
         DeallocatePage(page_id);
         free_list_.push_front(frame_id);
         page.ResetMemory();
-        page.is_dirty_ = false;
         free_list_.push_front(frame_id);
         return true;
       }
