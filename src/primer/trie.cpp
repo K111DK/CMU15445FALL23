@@ -151,13 +151,13 @@ auto Trie::Put(std::string_view key, T value) const -> Trie {
       clone->children_[upper_2_lower_key] = lower_node;
     }
 
-    if (upper_node->is_value_node_) {
-      std::shared_ptr<const TrieNodeWithValue<T>> cast =
-          std::dynamic_pointer_cast<const TrieNodeWithValue<T>>(upper_node);
-      if (cast == nullptr) {
-        throw Exception("Bad Cast");
-      }
-    }
+    //    if (upper_node->is_value_node_) {
+    //      std::shared_ptr<const TrieNodeWithValue<T>> cast =
+    //          std::dynamic_pointer_cast<const TrieNodeWithValue<T>>(upper_node);
+    //      if (cast == nullptr) {
+    //        throw Exception("Bad Cast");
+    //      }
+    //    }
 
     lower_node = std::shared_ptr<const TrieNode>(std::move(clone));
 

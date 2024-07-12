@@ -257,6 +257,7 @@ set(P0_FILES
         "src/primer/trie.cpp"
         "src/planner/plan_func_call.cpp"
         "src/include/execution/expressions/string_expression.h"
+        "GRADESCOPE.md"
 )
 add_custom_target(check-clang-tidy-p0
         ${BUSTUB_BUILD_SUPPORT_DIR}/run_clang_tidy.py # run LLVM's clang-tidy script
