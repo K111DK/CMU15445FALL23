@@ -35,23 +35,34 @@ DiskScheduler::~DiskScheduler() {
 
 void DiskScheduler::Schedule(DiskRequest r) { request_queue_.Put(std::make_optional<DiskRequest>(std::move(r))); }
 
+// void DiskScheduler::StartWorkerThread() {
+//   while (!done_) {
+//     auto r = request_queue_.Get();
+//     auto disk_manager = disk_manager_;
+//     if (r.has_value()) {
+//       std::thread th([&r, &disk_manager] {
+//         if (r.value().is_write_) {
+//           disk_manager->WritePage(r.value().page_id_, r.value().data_);
+//         } else {
+//           disk_manager->ReadPage(r.value().page_id_, r.value().data_);
+//         }
+//         r.value().callback_.set_value(true);
+//       });
+//       th.join();
+//     } else {
+//       done_ = true;
+//     }
+//   }
+// }
 void DiskScheduler::StartWorkerThread() {
-  while (!done_) {
-    auto r = request_queue_.Get();
-    auto disk_manager = disk_manager_;
-    if (r.has_value()) {
-      std::thread th([&r, &disk_manager] {
-        if (r.value().is_write_) {
-          disk_manager->WritePage(r.value().page_id_, r.value().data_);
-        } else {
-          disk_manager->ReadPage(r.value().page_id_, r.value().data_);
-        }
-        r.value().callback_.set_value(true);
-      });
-      th.join();
+  std::optional<DiskRequest> request;
+  while ((request = request_queue_.Get(), request.has_value())) {
+    if (request->is_write_) {
+      disk_manager_->WritePage(request->page_id_, request->data_);
     } else {
-      done_ = true;
+      disk_manager_->ReadPage(request->page_id_, request->data_);
     }
+    request->callback_.set_value(true);
   }
 }
 
