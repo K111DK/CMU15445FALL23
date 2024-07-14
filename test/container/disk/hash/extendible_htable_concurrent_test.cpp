@@ -45,7 +45,7 @@ void LaunchParallelTest(uint64_t num_threads, Args &&...args) {
 // helper function to insert
 void InsertHelper(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<8>> *ht,
                   const std::vector<int64_t> &keys, __attribute__((unused)) uint64_t thread_itr = 0) {
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   RID rid;
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
@@ -59,7 +59,7 @@ void InsertHelper(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<
 void InsertHelperSplit(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<8>> *ht,
                        const std::vector<int64_t> &keys, int total_threads,
                        __attribute__((unused)) uint64_t thread_itr) {
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   RID rid;
   for (auto key : keys) {
     if (static_cast<uint64_t>(key) % total_threads == thread_itr) {
@@ -74,7 +74,7 @@ void InsertHelperSplit(DiskExtendibleHashTable<GenericKey<8>, RID, GenericCompar
 // helper function to delete
 void DeleteHelper(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<8>> *ht,
                   const std::vector<int64_t> &remove_keys, __attribute__((unused)) uint64_t thread_itr = 0) {
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     ht->Remove(index_key);
@@ -85,7 +85,7 @@ void DeleteHelper(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<
 void DeleteHelperSplit(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<8>> *ht,
                        const std::vector<int64_t> &remove_keys, int total_threads,
                        __attribute__((unused)) uint64_t thread_itr) {
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : remove_keys) {
     if (static_cast<uint64_t>(key) % total_threads == thread_itr) {
       index_key.SetFromInteger(key);
@@ -96,7 +96,7 @@ void DeleteHelperSplit(DiskExtendibleHashTable<GenericKey<8>, RID, GenericCompar
 
 void LookupHelper(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<8>> *ht,
                   const std::vector<int64_t> &keys, uint64_t tid, __attribute__((unused)) uint64_t thread_itr = 0) {
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   RID rid;
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
@@ -134,7 +134,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_InsertTest1) {
   LaunchParallelTest(2, InsertHelper, &ht, keys);
 
   std::vector<RID> rids;
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : keys) {
     rids.clear();
     index_key.SetFromInteger(key);
@@ -167,7 +167,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_InsertTest2) {
   LaunchParallelTest(2, InsertHelperSplit, &ht, keys, 2);
 
   std::vector<RID> rids;
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : keys) {
     rids.clear();
     index_key.SetFromInteger(key);
@@ -187,7 +187,6 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_DeleteTest1) {
 
   auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
   auto bpm = std::make_unique<BufferPoolManager>(50, disk_mgr.get());
-
   // create hash table
   DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<8>> ht("blah", bpm.get(), comparator,
                                                                        HashFunction<GenericKey<8>>());
@@ -199,7 +198,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_DeleteTest1) {
   LaunchParallelTest(2, DeleteHelper, &ht, remove_keys);
 
   std::vector<RID> rids;
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : keys) {
     rids.clear();
     index_key.SetFromInteger(key);
@@ -236,7 +235,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_DeleteTest2) {
   LaunchParallelTest(2, DeleteHelperSplit, &ht, remove_keys, 2);
 
   std::vector<RID> rids;
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : keys) {
     rids.clear();
     index_key.SetFromInteger(key);
@@ -282,7 +281,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_MixTest1) {
   std::vector<int64_t> invalid_keys = {1, 3, 4, 5, 6};
 
   std::vector<RID> rids;
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : valid_keys) {
     rids.clear();
     index_key.SetFromInteger(key);
@@ -337,7 +336,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_MixTest2) {
 
   size_t num_threads = 6;
   for (size_t i = 0; i < num_threads; i++) {
-    threads.emplace_back(std::thread{tasks[i % tasks.size()], i});
+    threads.emplace_back(tasks[i % tasks.size()], i);
   }
   for (size_t i = 0; i < num_threads; i++) {
     threads[i].join();
@@ -345,7 +344,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_MixTest2) {
 
   // Check all preserved keys exist
   std::vector<RID> rids;
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   for (auto key : preserved_keys) {
     rids.clear();
     index_key.SetFromInteger(key);

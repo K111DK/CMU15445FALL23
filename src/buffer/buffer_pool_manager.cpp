@@ -241,11 +241,29 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
+  auto *page = FetchPage(page_id, AccessType::Unknown);
+  if(page != nullptr) {
+    return {this, page};
+  }
+  return { nullptr, nullptr};
+}
 
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
+  auto *page = FetchPage(page_id, AccessType::Unknown);
+  if(page != nullptr) {
+    return {this, page};
+  }
+  return {this, nullptr};
+}
 
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
+  auto *page = FetchPage(page_id, AccessType::Unknown);
+  if(page != nullptr) {
+    return {this, page};
+  }
+  return {this, nullptr};
+}
 
 auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
 

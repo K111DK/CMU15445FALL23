@@ -12,9 +12,11 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
 }
 
 void BasicPageGuard::Drop() {
-  bpm_->UnpinPage(page_->GetPageId(), page_->IsDirty(), AccessType::Unknown);
-  bpm_ = nullptr;
-  page_ = nullptr;
+  if ((bpm_ != nullptr) && (page_ != nullptr)) {
+    bpm_->UnpinPage(page_->GetPageId(), page_->IsDirty(), AccessType::Unknown);
+    bpm_ = nullptr;
+    page_ = nullptr;
+  }
 }
 
 auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard & {
@@ -34,13 +36,15 @@ BasicPageGuard::~BasicPageGuard() {
 auto BasicPageGuard::UpgradeRead() -> ReadPageGuard {
   auto bpm_cp = bpm_;
   auto page_cp = page_;
-  Drop();
+  bpm_ = nullptr;
+  page_ = nullptr;
   return {bpm_cp, page_cp};
 }
 auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
   auto bpm_cp = bpm_;
   auto page_cp = page_;
-  Drop();
+  bpm_ = nullptr;
+  page_ = nullptr;
   return {bpm_cp, page_cp};
 };  // NOLINT
 

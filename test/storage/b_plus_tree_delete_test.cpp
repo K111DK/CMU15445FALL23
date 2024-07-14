@@ -35,7 +35,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteTest1) {
   auto header_page = bpm->NewPage(&page_id);
   // create b+ tree
   BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator);
-  GenericKey<8> index_key;
+  GenericKey<8> index_key{};
   RID rid;
   // create transaction
   auto *transaction = new Transaction(0);
