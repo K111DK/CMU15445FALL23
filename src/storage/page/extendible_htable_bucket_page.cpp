@@ -24,12 +24,11 @@ void ExtendibleHTableBucketPage<K, V, KC>::Init(uint32_t max_size) {
   BUSTUB_ASSERT(max_size >= 1 && max_size <= upper_bound, "Invalid bucket size");
   max_size_ = max_size;
   size_ = 0;
-  memset(array_, 0, max_size * sizeof(std::pair<K, V>));
 }
 
 template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::Lookup(const K &key, V &value, const KC &cmp) const -> bool {
-  for(uint32_t i = 0 ; i < max_size_ ; ++i){
+  for(uint32_t i = 0 ; i < size_ ; ++i){
     auto key_temp = array_[i].first;
     if(cmp(key, key_temp) == 0){
       value = array_[i].second;
@@ -46,17 +45,11 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Insert(const K &key, const V &value, 
     return false;
   }
 
-  uint32_t first_empty_slot;
-  bool found_empty_slot = false;
-
   //check if key is exist in inserted keys
-  for (uint32_t i = 0; i < max_size_; ++i) {
-
+  for (uint32_t i = 0; i < size_; ++i) {
     // 0    1     2   ...   max_size - 1
     // deleted kv pair has the same key as it's previous kv pair
 
-    auto pre_key_idx = i == 0 ? max_size_ - 1 : i - 1;
-    auto pre_key_temp = array_[pre_key_idx].first;
     auto key_temp = array_[i].first;
 
     //found correspond key
@@ -64,23 +57,12 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Insert(const K &key, const V &value, 
       array_[i].second = value;
       return true;
     }
-
-    //current key is an empty slot
-    if(cmp(key_temp, pre_key_temp) == 0 && !found_empty_slot){
-      first_empty_slot = i;
-      found_empty_slot = true;
-    }
-
-  }
-  BUSTUB_ASSERT(found_empty_slot, "Can't find empty slot while size < max_size");
-  if(found_empty_slot){
-    //Insert kv pair to tail
-    array_[first_empty_slot] = std::make_pair(key, value);
-    size_++;
-    return true;
   }
 
-  return false;
+  //Insert kv pair to tail
+  array_[size_] = std::make_pair(key, value);
+  size_++;
+  return true;
 }
 
 template <typename K, typename V, typename KC>
@@ -90,14 +72,24 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Remove(const K &key, const KC &cmp) -
     return false;
   }
 
-  for(uint32_t i=0; i < max_size_; ++i){
+  uint32_t delete_idx = size_;
+  bool found = false;
+  for(uint32_t i=0; i < size_; ++i){
     auto key_temp = array_[i].first;
     if(cmp(key, key_temp) == 0){
-      auto pre_kv_idx = i == 0 ? max_size_ - 1: i - 1;
-      //current key = pre kv's key
-      array_[i].first = array_[pre_kv_idx].first;
-      return true;
+      delete_idx = i;
+      found = true;
+      break ;
     }
+  }
+
+  if(found){
+    BUSTUB_ASSERT(delete_idx != size_, "delete idx error!");
+    for(uint32_t i = delete_idx + 1; i < size_; ++i){
+      array_[i - 1] = array_[i];
+    }
+    size_--;
+    return true;
   }
 
   return false;
@@ -105,11 +97,11 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Remove(const K &key, const KC &cmp) -
 
 template <typename K, typename V, typename KC>
 void ExtendibleHTableBucketPage<K, V, KC>::RemoveAt(uint32_t bucket_idx) {
-  BUSTUB_ASSERT(bucket_idx < max_size_, "Invalid bucket_idx");
-  auto pre_kv_idx = bucket_idx == 0 ? max_size_ - 1: bucket_idx - 1;
-
-  //current key = pre kv's key
-  array_[bucket_idx].first = array_[pre_kv_idx].first;
+  BUSTUB_ASSERT(bucket_idx < size_, "Invalid bucket_idx");
+  for(uint32_t i = bucket_idx + 1; i < size_; ++i){
+    array_[i - 1] = array_[i];
+  }
+  size_--;
 }
 
 template <typename K, typename V, typename KC>

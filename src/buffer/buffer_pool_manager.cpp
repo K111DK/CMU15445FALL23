@@ -265,6 +265,9 @@ auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
   return {this, nullptr};
 }
 
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {
+  auto page = NewPage(page_id);
+  return {this, page};
+}
 
 }  // namespace bustub
