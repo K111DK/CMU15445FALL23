@@ -134,7 +134,6 @@ auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Tra
   }
 
   auto local_depth = directory_page->GetLocalDepth(bucket_idx);
-  auto local_depth_mask = directory_page->GetLocalDepthMask(bucket_idx);
   auto global_depth = directory_page->GetGlobalDepth();
 
   if(global_depth > local_depth){
@@ -145,24 +144,27 @@ auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Tra
     auto new_bucket_page_guard = bpm_->NewPageGuarded(&new_bucket_page_idx);
     BUSTUB_ASSERT(new_bucket_page_guard.GetData() != nullptr, "Can't fetch new page for bucket");
     auto new_bucket_page = new_bucket_page_guard.AsMut<ExtendibleHTableBucketPage<K, V, KC>>();
+    new_bucket_page->Init(bucket_max_size_);
 
     //Migrate kv pairs
     MigrateEntries(bucket_page,new_bucket_page,
-                   split_image_idx, local_depth_mask << 1);
+                   split_image_idx, static_cast<uint32_t>(1) << local_depth);
 
+    auto old_local_depth_mask = directory_page->GetLocalDepthMask(bucket_idx);
+    uint32_t new_local_depth_mask = (old_local_depth_mask << 1) | static_cast<uint32_t>(1);
     //Update mappings
     UpdateDirectoryMapping(directory_page, split_image_idx,new_bucket_page_idx,
-                           local_depth + 1, local_depth_mask << 1);
+                           local_depth + 1, new_local_depth_mask);
     UpdateDirectoryMapping(directory_page, bucket_idx,bucket_page_id,
-                           local_depth + 1, local_depth_mask << 1);
+                           local_depth + 1, new_local_depth_mask);
     VerifyIntegrity();
 
-  }else{
-
+  }else {
+    if (directory_page->GetGlobalDepth() == directory_max_depth_) {
+      return false;
+    }
     directory_page->IncrGlobalDepth();
-
   }
-
   goto TRY_INSERT;
 }
 
@@ -202,7 +204,7 @@ template <typename K, typename V, typename KC>
                                                                uint32_t new_bucket_idx, page_id_t new_bucket_page_id,
                                                                uint32_t new_local_depth, uint32_t local_depth_mask) {
   for(uint32_t bucket_idx = 0; bucket_idx < (static_cast<uint32_t> (1) << directory->GetGlobalDepth()) ;bucket_idx++){
-    if((bucket_idx & local_depth_mask) == new_bucket_idx){
+    if((bucket_idx & local_depth_mask) == (new_bucket_idx & local_depth_mask)){
         directory->SetBucketPageId(bucket_idx, new_bucket_page_id);
         directory->SetLocalDepth(bucket_idx, new_local_depth);
     }

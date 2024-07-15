@@ -54,17 +54,19 @@ auto ExtendibleHTableDirectoryPage::GetSplitImageIndex(uint32_t bucket_idx) cons
   auto bucket_depth = local_depths_[bucket_idx];
   BUSTUB_ASSERT(bucket_depth < global_depth_, "Bucket's local depth >= global depth, can't split bucket");
 
-  auto after_split_depth_mask = static_cast<uint32_t>(1) << ( bucket_depth + 1 );
-  return after_split_depth_mask | static_cast<uint32_t>(bucket_depth);
+  auto after_split_depth_mask = static_cast<uint32_t>(1) << ( bucket_depth );
+  return after_split_depth_mask | static_cast<uint32_t>(bucket_idx);
 }
 
 auto ExtendibleHTableDirectoryPage::GetGlobalDepth() const -> uint32_t { return global_depth_; }
 
 void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
-  uint32_t current_directory_size = 2 << global_depth_;
+  uint32_t current_directory_size = 1 << global_depth_;
   for(uint32_t i = current_directory_size; i < current_directory_size * 2; ++i){
       bucket_page_ids_[i] = bucket_page_ids_[i - current_directory_size];
+      local_depths_[i] = local_depths_[i - current_directory_size];
   }
+  global_depth_++;
 }
 
 void ExtendibleHTableDirectoryPage::DecrGlobalDepth() {
