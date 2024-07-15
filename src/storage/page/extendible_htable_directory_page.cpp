@@ -23,16 +23,16 @@ void ExtendibleHTableDirectoryPage::Init(uint32_t max_depth) {
   //throw NotImplementedException("ExtendibleHTableDirectoryPage is not implemented");
   BUSTUB_ASSERT(max_depth >= 1, "Invalid max depth");
   max_depth_ = max_depth;
-  global_depth_ = 1; // ?
+  global_depth_ = 0; // ?
   uint32_t max_buckets = HTABLE_DIRECTORY_ARRAY_SIZE;
   for(uint32_t i = 0; i < max_buckets; ++i){
       bucket_page_ids_[i] = INVALID_PAGE_ID;
-      local_depths_[i] = 1;
+      local_depths_[i] = 0;
   }
 }
 
 auto ExtendibleHTableDirectoryPage::HashToBucketIndex(uint32_t hash) const -> uint32_t {
-  return hash >> ( 32 - global_depth_ );
+  return hash & GetGlobalDepthMask();
 }
 
 auto ExtendibleHTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) const -> page_id_t {
@@ -54,48 +54,22 @@ auto ExtendibleHTableDirectoryPage::GetSplitImageIndex(uint32_t bucket_idx) cons
   auto bucket_depth = local_depths_[bucket_idx];
   BUSTUB_ASSERT(bucket_depth < global_depth_, "Bucket's local depth >= global depth, can't split bucket");
 
-  //backward search
-
-  uint32_t lower_bound = bucket_idx;
-  while(bucket_page_ids_[lower_bound] == original_bucket_page_id
-         && lower_bound < bucket_idx){
-      lower_bound--;
-  }
-
-  if(lower_bound > bucket_idx && bucket_idx != 0){
-      return 0; //TBD:Do we need to set[split_idx] = Invalid page id ?
-  }
-
-  if (lower_bound < bucket_idx && lower_bound + 1 != bucket_idx){
-      return lower_bound + 1;
-  }
-
-  uint32_t upper_bound = bucket_idx;
-  while(bucket_page_ids_[upper_bound] == original_bucket_page_id
-         && upper_bound > bucket_idx){
-      upper_bound++;
-  }
-
-  if(upper_bound < bucket_idx && bucket_idx != static_cast<uint32_t>(-1)){
-      BUSTUB_ASSERT(0, "Huge bucket_idx");
-  }
-
-  if(upper_bound > bucket_idx && upper_bound - 1 != bucket_idx){
-      return upper_bound - 1;
-  }
-
-  return bucket_idx;//No split image
+  auto after_split_depth_mask = static_cast<uint32_t>(1) << ( bucket_depth + 1 );
+  return after_split_depth_mask | static_cast<uint32_t>(bucket_depth);
 }
 
 auto ExtendibleHTableDirectoryPage::GetGlobalDepth() const -> uint32_t { return global_depth_; }
 
 void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
-  global_depth_++;
+  uint32_t current_directory_size = 2 << global_depth_;
+  for(uint32_t i = current_directory_size; i < current_directory_size * 2; ++i){
+      bucket_page_ids_[i] = bucket_page_ids_[i - current_directory_size];
+  }
 }
 
 void ExtendibleHTableDirectoryPage::DecrGlobalDepth() {
-  if(global_depth_ > 0){
-      global_depth_--;
+  if(global_depth_ > 0 && CanShrink()){
+      global_depth_--;//Dose this ok?
   }
 }
 
@@ -108,7 +82,7 @@ auto ExtendibleHTableDirectoryPage::CanShrink() -> bool {
 }
 
 auto ExtendibleHTableDirectoryPage::Size() const -> uint32_t {
-  return 2 << global_depth_;
+  return 1 << global_depth_;
 }
 
 auto ExtendibleHTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) const -> uint32_t {
@@ -134,5 +108,13 @@ void ExtendibleHTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) {
       local_depths_[bucket_idx]--;
   }
 }
+auto ExtendibleHTableDirectoryPage::GetGlobalDepthMask() const -> uint32_t {
+  return ~( static_cast<uint32_t>(-1) << global_depth_ );
+}
+auto ExtendibleHTableDirectoryPage::GetLocalDepthMask(uint32_t bucket_idx) const -> uint32_t {
+  return ~( static_cast<uint32_t>(-1) << local_depths_[bucket_idx] );
+}
+auto ExtendibleHTableDirectoryPage::GetMaxDepth() const -> uint32_t { return max_depth_; }
+auto ExtendibleHTableDirectoryPage::MaxSize() const -> uint32_t { return 1 << max_depth_; }
 
 }  // namespace bustub

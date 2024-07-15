@@ -100,6 +100,10 @@ class DiskExtendibleHashTable {
    */
   void PrintHT() const;
 
+  uint32_t header_max_depth_;
+  uint32_t directory_max_depth_;
+  uint32_t bucket_max_size_;
+
  private:
   /**
    * Hash - simple helper to downcast MurmurHash's 64-bit hash to 32-bit
@@ -110,15 +114,22 @@ class DiskExtendibleHashTable {
    */
   auto Hash(K key) const -> uint32_t;
 
-  auto InsertToNewDirectory(ExtendibleHTableHeaderPage *header, uint32_t directory_idx, uint32_t hash, const K &key,
+  [[maybe_unused]] auto InsertToNewDirectory(ExtendibleHTableHeaderPage *header, uint32_t directory_idx, uint32_t hash, const K &key,
                             const V &value) -> bool;
 
-  auto InsertToNewBucket(ExtendibleHTableDirectoryPage *directory, uint32_t bucket_idx, const K &key, const V &value)
+  [[maybe_unused]] auto InsertToNewBucket(ExtendibleHTableDirectoryPage *directory, uint32_t bucket_idx, const K &key, const V &value)
       -> bool;
 
-  void UpdateDirectoryMapping(ExtendibleHTableDirectoryPage *directory, uint32_t new_bucket_idx,
+  [[maybe_unused]] void UpdateDirectoryMapping(ExtendibleHTableDirectoryPage *directory, uint32_t new_bucket_idx,
                               page_id_t new_bucket_page_id, uint32_t new_local_depth, uint32_t local_depth_mask);
 
+  /**
+   * MigrateEntries -
+   * @param old_bucket the key to hash
+   * @param new_bucket the key to hash
+   * @param new_bucket_idx
+   * @param local_depth_mask
+   */
   void MigrateEntries(ExtendibleHTableBucketPage<K, V, KC> *old_bucket,
                       ExtendibleHTableBucketPage<K, V, KC> *new_bucket, uint32_t new_bucket_idx,
                       uint32_t local_depth_mask);
@@ -128,9 +139,6 @@ class DiskExtendibleHashTable {
   BufferPoolManager *bpm_;
   KC cmp_;
   HashFunction<K> hash_fn_;
-  uint32_t header_max_depth_;
-  uint32_t directory_max_depth_;
-  uint32_t bucket_max_size_;
   page_id_t header_page_id_;
 };
 
