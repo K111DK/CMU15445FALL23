@@ -56,6 +56,7 @@ DiskExtendibleHashTable<K, V, KC>::DiskExtendibleHashTable(const std::string &na
 template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::GetValue(const K &key, std::vector<V> *result, Transaction *transaction) const
     -> bool {
+  std::lock_guard<std::mutex> guard(hash_table_lock_);
   uint32_t hash = Hash(key);
 
   auto header_page_guard = bpm_->FetchPageBasic(header_page_id_);
@@ -98,6 +99,7 @@ auto DiskExtendibleHashTable<K, V, KC>::GetValue(const K &key, std::vector<V> *r
 
 template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Transaction *transaction) -> bool {
+  std::lock_guard<std::mutex> guard(hash_table_lock_);
   uint32_t hash = Hash(key);
 
   auto header_page_guard = bpm_->FetchPageBasic(header_page_id_);
@@ -239,7 +241,82 @@ void DiskExtendibleHashTable<K, V, KC>::MigrateEntries(ExtendibleHTableBucketPag
  *****************************************************************************/
 template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::Remove(const K &key, Transaction *transaction) -> bool {
-  return false;
+  std::lock_guard<std::mutex> guard(hash_table_lock_);
+  uint32_t hash = Hash(key);
+
+  auto header_page_guard = bpm_->FetchPageBasic(header_page_id_);
+  auto header_page = header_page_guard.AsMut<ExtendibleHTableHeaderPage>();
+  BUSTUB_ASSERT(header_page != nullptr, "Can't fetch header page");
+
+  auto directory_idx = header_page->HashToDirectoryIndex(hash);
+  auto directory_page_id = static_cast<page_id_t>(header_page->GetDirectoryPageId(directory_idx));
+
+  if(directory_page_id == INVALID_PAGE_ID){
+      return false;
+  }
+
+  auto directory_page_guard = bpm_->FetchPageBasic(directory_page_id);
+  auto directory_page = directory_page_guard.AsMut<ExtendibleHTableDirectoryPage>();
+  BUSTUB_ASSERT(directory_page != nullptr, "Can't fetch directory page");
+
+  auto bucket_idx = directory_page->HashToBucketIndex(hash);
+  auto bucket_page_id = directory_page->GetBucketPageId(bucket_idx);
+  //auto bucket_local_depth = directory_page->GetLocalDepth(bucket_idx);
+  //auto bucket_local_depth_bit_mask = static_cast<uint32_t>(1) << bucket_local_depth;
+
+  if(bucket_page_id == INVALID_PAGE_ID){
+      return false;
+  }
+
+  auto bucket_page_guard = bpm_->FetchPageBasic(bucket_page_id);
+  auto bucket_page = bucket_page_guard.AsMut<ExtendibleHTableBucketPage<K,V,KC>>();
+  BUSTUB_ASSERT(bucket_page != nullptr, "Can't fetch bucket page");
+
+  bool success = bucket_page->Remove(key, cmp_);
+  if(success){
+    //pass
+  }
+  return success;
+}
+
+template <typename K, typename V, typename KC>
+auto DiskExtendibleHashTable<K, V, KC>::DirectoryBucketMerging(ExtendibleHTableDirectoryPage *directory,
+                                                               ExtendibleHTableBucketPage<K, V, KC> *bucket_page,
+                                                               uint32_t bucket_idx, uint32_t hash) {
+
+  auto bucket_page_id = directory->GetBucketPageId(bucket_idx);
+  auto bucket_local_depth = directory->GetLocalDepth(bucket_idx);
+  auto bucket_local_depth_bit_mask = static_cast<uint32_t>(1) << bucket_local_depth;
+  if(!bucket_page->IsEmpty()){
+      return ;
+  }
+
+  uint32_t brother_bucket_id;
+  if((bucket_idx & bucket_local_depth_bit_mask) == 0 ){
+      brother_bucket_id = bucket_idx | bucket_local_depth_bit_mask;
+  }else{
+      brother_bucket_id = bucket_idx & (~bucket_local_depth_bit_mask);
+  }
+
+  if(directory->GetLocalDepth(bucket_idx) != directory->GetLocalDepth(brother_bucket_id)){
+      return ;
+  }
+
+  auto brother_bucket_page_guard = bpm_->FetchPageBasic(bucket_page_id);
+  auto brother_bucket_page = brother_bucket_page_guard.AsMut<ExtendibleHTableBucketPage<K,V,KC>>();
+  BUSTUB_ASSERT(brother_bucket_page != nullptr, "Can't fetch bucket page");
+
+  if(!brother_bucket_page->IsEmpty()){
+      return ;
+  }
+
+  auto merged_local_depth_mask = directory->GetLocalDepthMask(bucket_page_id) >> 1;
+  UpdateDirectoryMapping(directory, brother_bucket_id,bucket_page_id,
+                         bucket_local_depth - 1, merged_local_depth_mask);
+  UpdateDirectoryMapping(directory, bucket_idx,bucket_page_id,
+                         bucket_local_depth - 1, merged_local_depth_mask);
+
+  return;
 }
 
 template class DiskExtendibleHashTable<int, int, IntComparator>;

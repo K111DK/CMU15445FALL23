@@ -134,12 +134,17 @@ class DiskExtendibleHashTable {
                       ExtendibleHTableBucketPage<K, V, KC> *new_bucket, uint32_t new_bucket_idx,
                       uint32_t local_depth_mask);
 
+  auto DirectoryBucketMerging(ExtendibleHTableDirectoryPage *directory, ExtendibleHTableBucketPage<K,V,KC> *bucket_page,
+                              uint32_t bucket_idx, uint32_t hash);
+
   // member variables
   std::string index_name_;
   BufferPoolManager *bpm_;
   KC cmp_;
   HashFunction<K> hash_fn_;
   page_id_t header_page_id_;
+  mutable std::mutex hash_table_lock_;
 };
+
 
 }  // namespace bustub

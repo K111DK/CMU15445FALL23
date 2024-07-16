@@ -17,7 +17,7 @@
 namespace bustub {
 
 void ExtendibleHTableHeaderPage::Init(uint32_t max_depth) {
-  BUSTUB_ASSERT(max_depth < HTABLE_HEADER_MAX_DEPTH, "Invalid max depth");
+  BUSTUB_ASSERT(max_depth <= HTABLE_HEADER_MAX_DEPTH, "Invalid max depth");
   max_depth_ = max_depth;
   for(auto &directory_page_id: directory_page_ids_){
     directory_page_id = INVALID_PAGE_ID;
@@ -25,7 +25,7 @@ void ExtendibleHTableHeaderPage::Init(uint32_t max_depth) {
 }
 
 auto ExtendibleHTableHeaderPage::HashToDirectoryIndex(uint32_t hash) const -> uint32_t {
-  return max_depth_ == 0 ? 0 : hash >> (31 - max_depth_);
+  return max_depth_ == 0 ? 0 : hash >> (32 - max_depth_);
 }
 
 auto ExtendibleHTableHeaderPage::GetDirectoryPageId(uint32_t directory_idx) const -> uint32_t {

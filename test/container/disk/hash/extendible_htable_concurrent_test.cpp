@@ -113,7 +113,7 @@ void LookupHelper(DiskExtendibleHashTable<GenericKey<8>, RID, GenericComparator<
 //===----------------------------------------------------------------------===//
 
 // NOLINTNEXTLINE
-TEST(ExtendibleHTableConcurrentTest, DISABLED_InsertTest1) {
+TEST(ExtendibleHTableConcurrentTest, InsertTest1) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -147,7 +147,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_InsertTest1) {
 }
 
 // NOLINTNEXTLINE
-TEST(ExtendibleHTableConcurrentTest, DISABLED_InsertTest2) {
+TEST(ExtendibleHTableConcurrentTest, InsertTest2) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -180,7 +180,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_InsertTest2) {
 }
 
 // NOLINTNEXTLINE
-TEST(ExtendibleHTableConcurrentTest, DISABLED_DeleteTest1) {
+TEST(ExtendibleHTableConcurrentTest, DeleteTest1) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -215,7 +215,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_DeleteTest1) {
 }
 
 // NOLINTNEXTLINE
-TEST(ExtendibleHTableConcurrentTest, DISABLED_DeleteTest2) {
+TEST(ExtendibleHTableConcurrentTest, DeleteTest2) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -251,7 +251,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_DeleteTest2) {
   }
 }
 
-TEST(ExtendibleHTableConcurrentTest, DISABLED_MixTest1) {
+TEST(ExtendibleHTableConcurrentTest, MixTest1) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -298,7 +298,7 @@ TEST(ExtendibleHTableConcurrentTest, DISABLED_MixTest1) {
   }
 }
 
-TEST(ExtendibleHTableConcurrentTest, DISABLED_MixTest2) {
+TEST(ExtendibleHTableConcurrentTest, MixTest2) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
