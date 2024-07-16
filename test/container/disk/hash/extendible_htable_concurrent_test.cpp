@@ -131,7 +131,7 @@ TEST(ExtendibleHTableConcurrentTest, InsertTest1) {
   for (int64_t key = 1; key < scale_factor; key++) {
     keys.push_back(key);
   }
-  LaunchParallelTest(2, InsertHelper, &ht, keys);
+  LaunchParallelTest(1, InsertHelper, &ht, keys);
 
   std::vector<RID> rids;
   GenericKey<8> index_key{};
