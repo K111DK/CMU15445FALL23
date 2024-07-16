@@ -243,15 +243,15 @@ auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
 auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
   auto *page = FetchPage(page_id, AccessType::Unknown);
-  if(page != nullptr) {
+  if (page != nullptr) {
     return {this, page};
   }
-  return { nullptr, nullptr};
+  return {nullptr, nullptr};
 }
 
 auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
   auto *page = FetchPage(page_id, AccessType::Unknown);
-  if(page != nullptr) {
+  if (page != nullptr) {
     return {this, page};
   }
   return {this, nullptr};
@@ -259,7 +259,7 @@ auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
 
 auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
   auto *page = FetchPage(page_id, AccessType::Unknown);
-  if(page != nullptr) {
+  if (page != nullptr) {
     return {this, page};
   }
   return {this, nullptr};

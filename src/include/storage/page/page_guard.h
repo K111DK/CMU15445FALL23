@@ -109,6 +109,7 @@ class BasicPageGuard {
   [[maybe_unused]] BufferPoolManager *bpm_{nullptr};
   Page *page_{nullptr};
   bool is_dirty_{false};
+  std::recursive_mutex b_latch_;
 };
 
 class ReadPageGuard {
@@ -170,12 +171,13 @@ class ReadPageGuard {
   // You may choose to get rid of this and add your own private variables.
   BasicPageGuard guard_;
   bool valid_ = {true};
+  std::recursive_mutex r_latch_;
 };
 
 class WritePageGuard {
  public:
   WritePageGuard() = default;
-  WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {guard_.is_dirty_ = true;}
+  WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) { guard_.is_dirty_ = true; }
   WritePageGuard(const WritePageGuard &) = delete;
   auto operator=(const WritePageGuard &) -> WritePageGuard & = delete;
 
@@ -238,6 +240,7 @@ class WritePageGuard {
   // You may choose to get rid of this and add your own private variables.
   BasicPageGuard guard_;
   bool valid_ = {true};
+  std::recursive_mutex w_latch_;
 };
 
 }  // namespace bustub

@@ -114,14 +114,15 @@ class DiskExtendibleHashTable {
    */
   auto Hash(K key) const -> uint32_t;
 
-  [[maybe_unused]] auto InsertToNewDirectory(ExtendibleHTableHeaderPage *header, uint32_t directory_idx, uint32_t hash, const K &key,
-                            const V &value) -> bool;
+  [[maybe_unused]] auto InsertToNewDirectory(ExtendibleHTableHeaderPage *header, uint32_t directory_idx, uint32_t hash,
+                                             const K &key, const V &value) -> bool;
 
-  [[maybe_unused]] auto InsertToNewBucket(ExtendibleHTableDirectoryPage *directory, uint32_t bucket_idx, const K &key, const V &value)
-      -> bool;
+  [[maybe_unused]] auto InsertToNewBucket(ExtendibleHTableDirectoryPage *directory, uint32_t bucket_idx, const K &key,
+                                          const V &value) -> bool;
 
   [[maybe_unused]] void UpdateDirectoryMapping(ExtendibleHTableDirectoryPage *directory, uint32_t new_bucket_idx,
-                              page_id_t new_bucket_page_id, uint32_t new_local_depth, uint32_t local_depth_mask);
+                                               page_id_t new_bucket_page_id, uint32_t new_local_depth,
+                                               uint32_t local_depth_mask);
 
   /**
    * MigrateEntries -
@@ -134,8 +135,8 @@ class DiskExtendibleHashTable {
                       ExtendibleHTableBucketPage<K, V, KC> *new_bucket, uint32_t new_bucket_idx,
                       uint32_t local_depth_mask);
 
-  auto DirectoryBucketMerging(ExtendibleHTableDirectoryPage *directory, ExtendibleHTableBucketPage<K,V,KC> *bucket_page,
-                              uint32_t bucket_idx, uint32_t hash);
+  auto DirectoryBucketMerging(ExtendibleHTableDirectoryPage *directory,
+                              ExtendibleHTableBucketPage<K, V, KC> *bucket_page, uint32_t bucket_idx, uint32_t hash);
 
   // member variables
   std::string index_name_;
@@ -145,6 +146,5 @@ class DiskExtendibleHashTable {
   page_id_t header_page_id_;
   mutable std::mutex hash_table_lock_;
 };
-
 
 }  // namespace bustub

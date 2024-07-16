@@ -4,14 +4,18 @@
 namespace bustub {
 
 BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
-  bpm_ = that.bpm_;
-  page_ = that.page_;
-  is_dirty_ = that.is_dirty_;
-  that.bpm_ = nullptr;
-  that.page_ = nullptr;
+  std::scoped_lock<std::recursive_mutex, std::recursive_mutex> guard(b_latch_, that.b_latch_);
+  if (&that != this) {
+    bpm_ = that.bpm_;
+    page_ = that.page_;
+    is_dirty_ = that.is_dirty_;
+    that.bpm_ = nullptr;
+    that.page_ = nullptr;
+  }
 }
 
 void BasicPageGuard::Drop() {
+  std::scoped_lock<std::recursive_mutex> guard(b_latch_);
   if ((bpm_ != nullptr) && (page_ != nullptr)) {
     bpm_->UnpinPage(page_->GetPageId(), is_dirty_, AccessType::Unknown);
     bpm_ = nullptr;
@@ -20,6 +24,11 @@ void BasicPageGuard::Drop() {
 }
 
 auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard & {
+  std::scoped_lock<std::recursive_mutex, std::recursive_mutex> guard(b_latch_, that.b_latch_);
+  if (&that == this) {
+    return *this;
+  }
+  Drop();
   bpm_ = that.bpm_;
   page_ = that.page_;
   is_dirty_ = that.is_dirty_;
@@ -29,11 +38,15 @@ auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard
 }
 
 BasicPageGuard::~BasicPageGuard() {
+  std::scoped_lock<std::recursive_mutex> guard(b_latch_);
   if ((bpm_ != nullptr) && (page_ != nullptr)) {
     Drop();
   }
 }
 auto BasicPageGuard::UpgradeRead() -> ReadPageGuard {
+  std::scoped_lock<std::recursive_mutex> guard(b_latch_);
+  bpm_->FetchPage(page_->GetPageId(), AccessType::Unknown);
+  bpm_->UnpinPage(page_->GetPageId(), is_dirty_, AccessType::Unknown);
   auto bpm_cp = bpm_;
   auto page_cp = page_;
   bpm_ = nullptr;
@@ -41,6 +54,9 @@ auto BasicPageGuard::UpgradeRead() -> ReadPageGuard {
   return {bpm_cp, page_cp};
 }
 auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
+  std::scoped_lock<std::recursive_mutex> guard(b_latch_);
+  bpm_->FetchPage(page_->GetPageId(), AccessType::Unknown);
+  bpm_->UnpinPage(page_->GetPageId(), is_dirty_, AccessType::Unknown);
   auto bpm_cp = bpm_;
   auto page_cp = page_;
   bpm_ = nullptr;
@@ -48,20 +64,37 @@ auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
   return {bpm_cp, page_cp};
 };  // NOLINT
 
-ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept { guard_ = std::move(that.guard_); }
+ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept {
+  std::scoped_lock<std::recursive_mutex, std::recursive_mutex> guard(r_latch_, that.r_latch_);
+  if (&that != this) {
+    guard_ = std::move(that.guard_);
+    that.valid_ = false;
+  }
+}
 
 auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & {
+  std::scoped_lock<std::recursive_mutex, std::recursive_mutex> guard(r_latch_, that.r_latch_);
+  if (&that == this) {
+    return *this;
+  }
+  Drop();
   guard_ = std::move(that.guard_);
+  valid_ = true;
+  that.valid_ = false;
   return *this;
 }
 
 void ReadPageGuard::Drop() {
-  guard_.page_->RUnlatch();
-  guard_.Drop();
-  valid_ = false;
+  std::scoped_lock<std::recursive_mutex> guard(r_latch_);
+  if (valid_) {
+    guard_.page_->RUnlatch();
+    guard_.Drop();
+    valid_ = false;
+  }
 }
 
 ReadPageGuard::~ReadPageGuard() {
+  std::scoped_lock<std::recursive_mutex> guard(r_latch_);
   if (valid_) {
     Drop();
     valid_ = false;
@@ -69,23 +102,36 @@ ReadPageGuard::~ReadPageGuard() {
 }  // NOLINT
 
 WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept {
-  guard_ = std::move(that.guard_);
-  guard_.is_dirty_ = true;
+  std::scoped_lock<std::recursive_mutex, std::recursive_mutex> guard(w_latch_, that.w_latch_);
+  if (&that != this) {
+    guard_ = std::move(that.guard_);
+    that.valid_ = false;
+  }
 }
 
 auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard & {
+  std::scoped_lock<std::recursive_mutex, std::recursive_mutex> guard(w_latch_, that.w_latch_);
+  if (&that == this) {
+    return *this;
+  }
+  Drop();
   guard_ = std::move(that.guard_);
-  guard_.is_dirty_ = true;
+  valid_ = true;
+  that.valid_ = false;
   return *this;
 }
 
 void WritePageGuard::Drop() {
-  guard_.page_->WUnlatch();
-  guard_.Drop();
-  valid_ = false;
+  std::scoped_lock<std::recursive_mutex> guard(w_latch_);
+  if (valid_) {
+    guard_.page_->WUnlatch();
+    guard_.Drop();
+    valid_ = false;
+  }
 }
 
 WritePageGuard::~WritePageGuard() {
+  std::scoped_lock<std::recursive_mutex> guard(w_latch_);
   if (valid_) {
     Drop();
     valid_ = false;
