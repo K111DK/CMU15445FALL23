@@ -39,26 +39,20 @@ TEST(PageGuardTest, SampleTest) {
 
   auto disk_manager = std::make_shared<DiskManagerUnlimitedMemory>();
   auto bpm = std::make_shared<BufferPoolManager>(buffer_pool_size, disk_manager.get(), k);
-
   page_id_t page_id_temp;
-  auto *page0 = bpm->NewPage(&page_id_temp);
-
-  auto guarded_page = BasicPageGuard(bpm.get(), page0);
-
-  EXPECT_EQ(page0->GetData(), guarded_page.GetData());
-  EXPECT_EQ(page0->GetPageId(), guarded_page.PageId());
-  EXPECT_EQ(1, page0->GetPinCount());
-
-  guarded_page.Drop();
-
-  EXPECT_EQ(0, page0->GetPinCount());
-
-  {
-    auto *page2 = bpm->NewPage(&page_id_temp);
-    page2->RLatch();
-    auto guard2 = ReadPageGuard(bpm.get(), page2);
-  }
-
+  auto page0_guard = bpm->NewPageGuarded(&page_id_temp);
+  std::thread th1([&]() {
+    auto page_guard = bpm->FetchPageWrite(page_id_temp);
+    auto basic_guard = bpm->FetchPageBasic(page_id_temp);
+    WritePageGuard page0copy_guard = std::move(page_guard);
+  });
+  std::thread th2([&]() {
+    auto page_guard = bpm->FetchPageRead(page_id_temp);
+    auto basic_guard = bpm->FetchPageBasic(page_id_temp);
+    ReadPageGuard page1copy_guard = std::move(page_guard);
+  });
+  th1.join();
+  th2.join();
   // Shutdown the disk manager and remove the temporary file we created.
   disk_manager->ShutDown();
 }

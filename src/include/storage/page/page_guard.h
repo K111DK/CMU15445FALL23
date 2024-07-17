@@ -16,7 +16,6 @@ class BasicPageGuard {
 
   BasicPageGuard(const BasicPageGuard &) = delete;
   auto operator=(const BasicPageGuard &) -> BasicPageGuard & = delete;
-
   /** TODO(P2): Add implementation
    *
    * @brief Move constructor for BasicPageGuard
