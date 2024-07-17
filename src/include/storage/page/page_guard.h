@@ -83,7 +83,10 @@ class BasicPageGuard {
    */
   auto UpgradeWrite() -> WritePageGuard;
 
-  auto PageId() -> page_id_t { return page_->GetPageId(); }
+  auto PageId() -> page_id_t {
+    std::scoped_lock<std::recursive_mutex> guard(b_latch_);
+    return page_->GetPageId();
+  }
 
   auto GetData() -> const char * { return page_->GetData(); }
 
@@ -93,6 +96,7 @@ class BasicPageGuard {
   }
 
   auto GetDataMut() -> char * {
+    std::scoped_lock<std::recursive_mutex> guard(b_latch_);
     is_dirty_ = true;
     return page_->GetData();
   }
@@ -115,7 +119,11 @@ class BasicPageGuard {
 class ReadPageGuard {
  public:
   ReadPageGuard() = default;
-  ReadPageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {}
+  ReadPageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {
+    if (bpm == nullptr || page == nullptr) {
+      valid_ = false;
+    }
+  }
   ReadPageGuard(const ReadPageGuard &) = delete;
   auto operator=(const ReadPageGuard &) -> ReadPageGuard & = delete;
 
@@ -158,7 +166,10 @@ class ReadPageGuard {
    */
   ~ReadPageGuard();
 
-  auto PageId() -> page_id_t { return guard_.PageId(); }
+  auto PageId() -> page_id_t {
+    std::scoped_lock<std::recursive_mutex> guard(r_latch_);
+    return guard_.PageId();
+  }
 
   auto GetData() -> const char * { return guard_.GetData(); }
 
@@ -177,7 +188,11 @@ class ReadPageGuard {
 class WritePageGuard {
  public:
   WritePageGuard() = default;
-  WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) { guard_.is_dirty_ = true; }
+  WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {
+    if (bpm == nullptr || page == nullptr) {
+      valid_ = false;
+    }
+  }
   WritePageGuard(const WritePageGuard &) = delete;
   auto operator=(const WritePageGuard &) -> WritePageGuard & = delete;
 
@@ -220,7 +235,10 @@ class WritePageGuard {
    */
   ~WritePageGuard();
 
-  auto PageId() -> page_id_t { return guard_.PageId(); }
+  auto PageId() -> page_id_t {
+    std::scoped_lock<std::recursive_mutex> guard(w_latch_);
+    return guard_.PageId();
+  }
 
   auto GetData() -> const char * { return guard_.GetData(); }
 

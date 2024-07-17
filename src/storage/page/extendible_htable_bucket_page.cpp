@@ -54,8 +54,7 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Insert(const K &key, const V &value, 
 
     // found correspond key
     if (cmp(key, key_temp) == 0) {
-      array_[i].second = value;
-      return true;
+      return false;
     }
   }
 

@@ -21,6 +21,16 @@
 #include "gtest/gtest.h"
 
 namespace bustub {
+template <typename... Args>
+auto LaunchParallelTest(uint64_t num_threads, Args &&...args) {
+  std::vector<std::thread> threads;
+  for (uint64_t thread_tier = 0; thread_tier < num_threads; ++thread_tier) {
+    threads.push_back(std::thread(args..., thread_tier));
+  }
+  for (uint64_t thread_tier = 0; thread_tier < num_threads; ++thread_tier) {
+    threads[thread_tier].join();
+  }
+}
 
 // NOLINTNEXTLINE
 TEST(PageGuardTest, SampleTest) {

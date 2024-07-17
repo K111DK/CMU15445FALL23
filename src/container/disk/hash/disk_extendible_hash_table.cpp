@@ -42,6 +42,8 @@ DiskExtendibleHashTable<K, V, KC>::DiskExtendibleHashTable(const std::string &na
       cmp_(cmp),
       hash_fn_(std::move(hash_fn)) {
   // throw NotImplementedException("DiskExtendibleHashTable is not implemented");
+  fmt::println("New hash table: header max depth:{} directory max depth:{} bucket_max_size:{}", header_max_depth,
+               directory_max_depth, bucket_max_size);
   auto page = bpm->NewPage(&header_page_id_);
   if (page == nullptr) {
     throw Exception("Can't alloc page for hash table");
@@ -101,6 +103,7 @@ template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Transaction *transaction) -> bool {
   std::lock_guard<std::mutex> guard(hash_table_lock_);
   uint32_t hash = Hash(key);
+  fmt::println("Insert: {}", hash);
 
   auto header_page_guard = bpm_->FetchPageBasic(header_page_id_);
   auto header_page = header_page_guard.AsMut<ExtendibleHTableHeaderPage>();
@@ -240,7 +243,7 @@ template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::Remove(const K &key, Transaction *transaction) -> bool {
   std::lock_guard<std::mutex> guard(hash_table_lock_);
   uint32_t hash = Hash(key);
-
+  fmt::println("Remove: {}", hash);
   auto header_page_guard = bpm_->FetchPageBasic(header_page_id_);
   auto header_page = header_page_guard.AsMut<ExtendibleHTableHeaderPage>();
   BUSTUB_ASSERT(header_page != nullptr, "Can't fetch header page");
