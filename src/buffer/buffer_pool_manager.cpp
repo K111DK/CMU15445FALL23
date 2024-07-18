@@ -28,8 +28,7 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 
   // we allocate a consecutive memory space for the buffer pool
   pages_ = new Page[pool_size_];
-  replacer_ = std::make_unique<LRUKReplacer>(pool_size, replacer_k);
-
+  replacer_ = std::make_unique<LRUKReplacer>(pool_size_, replacer_k);
   // Initially, every page is in the free list.
   for (size_t i = 0; i < pool_size_; ++i) {
     free_list_.emplace_back(static_cast<int>(i));
@@ -59,6 +58,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
       replacer_->SetEvictable(victim_frame_id, false);
       return &pages_[victim_frame_id];
     }
+    std::cout << "Can't evict, size:" << std::to_string(replacer_->Size()) << std::endl;
     return nullptr;
   }
 

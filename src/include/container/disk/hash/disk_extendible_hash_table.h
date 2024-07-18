@@ -135,8 +135,7 @@ class DiskExtendibleHashTable {
                       ExtendibleHTableBucketPage<K, V, KC> *new_bucket, uint32_t new_bucket_idx,
                       uint32_t local_depth_mask);
 
-  auto DirectoryBucketMerging(ExtendibleHTableDirectoryPage *directory,
-                              ExtendibleHTableBucketPage<K, V, KC> *bucket_page, uint32_t bucket_idx, uint32_t hash);
+  auto DirectoryBucketMerging(ExtendibleHTableDirectoryPage *directory, uint32_t bucket_idx);
 
   // member variables
   std::string index_name_;

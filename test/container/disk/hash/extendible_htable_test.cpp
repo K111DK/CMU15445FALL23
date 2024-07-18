@@ -29,7 +29,7 @@ TEST(ExtendibleHTableTest, InsertTest1) {
 
   DiskExtendibleHashTable<int, int, IntComparator> ht("blah", bpm.get(), IntComparator(), HashFunction<int>(), 0, 2, 2);
 
-  int num_keys = 8;
+  int num_keys = 1000;
 
   // insert some values
   for (int i = 0; i < num_keys; i++) {
@@ -54,7 +54,7 @@ TEST(ExtendibleHTableTest, InsertTest2) {
 
   DiskExtendibleHashTable<int, int, IntComparator> ht("blah", bpm.get(), IntComparator(), HashFunction<int>(), 2, 3, 2);
 
-  int num_keys = 5;
+  int num_keys = 1000;
 
   // insert some values
   for (int i = 0; i < num_keys; i++) {
@@ -93,11 +93,12 @@ TEST(ExtendibleHTableTest, InsertTest2) {
 // NOLINTNEXTLINE
 TEST(ExtendibleHTableTest, RemoveTest1) {
   auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto bpm = std::make_unique<BufferPoolManager>(50, disk_mgr.get());
+  auto bpm = std::make_unique<BufferPoolManager>(3, disk_mgr.get());
 
-  DiskExtendibleHashTable<int, int, IntComparator> ht("blah", bpm.get(), IntComparator(), HashFunction<int>(), 2, 3, 2);
+  DiskExtendibleHashTable<int, int, IntComparator> ht("blah", bpm.get(), IntComparator(), HashFunction<int>(), 9, 9,
+                                                      511);
 
-  int num_keys = 5;
+  int num_keys = 1024;
 
   // insert some values
   for (int i = 0; i < num_keys; i++) {
