@@ -17,7 +17,7 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
 void BasicPageGuard::Drop() {
   std::scoped_lock<std::recursive_mutex> guard(b_latch_);
   if ((bpm_ != nullptr) && (page_ != nullptr)) {
-    bool success = bpm_->UnpinPage(page_->GetPageId(), is_dirty_, AccessType::Unknown);
+    bpm_->UnpinPage(page_->GetPageId(), is_dirty_, AccessType::Unknown);
     bpm_ = nullptr;
     page_ = nullptr;
   }
