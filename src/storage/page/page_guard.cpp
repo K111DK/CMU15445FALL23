@@ -18,8 +18,6 @@ void BasicPageGuard::Drop() {
   std::scoped_lock<std::recursive_mutex> guard(b_latch_);
   if ((bpm_ != nullptr) && (page_ != nullptr)) {
     bool success = bpm_->UnpinPage(page_->GetPageId(), is_dirty_, AccessType::Unknown);
-    fmt::println("{} Page:{} drop, After drop pin_count:{} unpin success:{}", pthread_self(), page_->GetPageId(),
-                 page_->GetPinCount(), success);
     bpm_ = nullptr;
     page_ = nullptr;
   }

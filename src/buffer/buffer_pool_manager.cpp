@@ -57,8 +57,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
 
       replacer_->RecordAccess(victim_frame_id, AccessType::Unknown);
       replacer_->SetEvictable(victim_frame_id, false);
-      fmt::println("{} New page {} pin count:{}", pthread_self(), pages_[victim_frame_id].page_id_,
-                   pages_[victim_frame_id].pin_count_);
       return &pages_[victim_frame_id];
     }
     return nullptr;
@@ -77,8 +75,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   page.pin_count_ = 1;
   page.is_dirty_ = false;
   page.page_id_ = new_page_id;
-  fmt::println("{} New page {} pin count:{}", pthread_self(), pages_[free_frame_id].page_id_,
-               pages_[free_frame_id].pin_count_);
   return &pages_[free_frame_id];
 }
 
@@ -247,7 +243,6 @@ auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
   auto *page = FetchPage(page_id, AccessType::Unknown);
   if (page != nullptr) {
-    fmt::println("{} FetchBasic {} => {} Pin count {}", pthread_self(), page_id, page_id, page->GetPinCount());
     return {this, page};
   }
   return {nullptr, nullptr};
@@ -256,7 +251,6 @@ auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
 auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
   auto *page = FetchPage(page_id, AccessType::Unknown);
   if (page != nullptr) {
-    fmt::println("{} FetchR {}  Pin count {}", pthread_self(), page_id, page->GetPinCount());
     page->RLatch();
     return {this, page};
   }
@@ -266,7 +260,6 @@ auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
 auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
   auto *page = FetchPage(page_id, AccessType::Unknown);
   if (page != nullptr) {
-    fmt::println("{} FetchW {}  Pin count {}", pthread_self(), page_id, page->GetPinCount());
     page->WLatch();
     return {this, page};
   }
