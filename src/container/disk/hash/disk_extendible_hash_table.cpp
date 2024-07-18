@@ -297,13 +297,21 @@ auto DiskExtendibleHashTable<K, V, KC>::DirectoryBucketMerging(ExtendibleHTableD
   uint32_t bucket_page_id = directory->GetBucketPageId(bucket_idx);
   uint32_t local_depth_mask = directory->GetLocalDepthMask(bucket_idx);
   uint32_t local_depth = directory->GetLocalDepth(bucket_idx);
-  uint32_t bucket_highest_bit = static_cast<uint32_t>(1) << local_depth;
+  if(local_depth == 0){
+    return;
+  }
 
-  uint32_t buddy_bucket_idx = bucket_idx;
-  if((hash & bucket_highest_bit) == 0){
-    buddy_bucket_idx |= bucket_highest_bit;
+  uint32_t bucket_highest_bit = static_cast<uint32_t>(1) << (local_depth - 1);
+
+  uint32_t buddy_bucket_idx;
+  if((bucket_idx & bucket_highest_bit) == 0){
+    buddy_bucket_idx = bucket_idx | bucket_highest_bit;
   }else{
-    buddy_bucket_idx &= (~bucket_highest_bit);
+    buddy_bucket_idx = bucket_idx & (~bucket_highest_bit);
+  }
+  uint32_t buddy_local_depth = directory->GetLocalDepth(buddy_bucket_idx);
+  if(buddy_local_depth != local_depth){
+    return;
   }
 
   auto buddy_bucket_page_id = directory->GetBucketPageId(buddy_bucket_idx);
@@ -315,7 +323,7 @@ auto DiskExtendibleHashTable<K, V, KC>::DirectoryBucketMerging(ExtendibleHTableD
 
   auto new_local_depth_mask = (~bucket_highest_bit) & local_depth_mask;
   UpdateDirectoryMapping(directory, bucket_idx,bucket_page_id,
-                         local_depth + 1, new_local_depth_mask);
+                         local_depth - 1, new_local_depth_mask);
   DirectoryBucketMerging(directory, bucket_page, bucket_idx, hash);
 }
 
