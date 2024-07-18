@@ -275,6 +275,12 @@ auto DiskExtendibleHashTable<K, V, KC>::Remove(const K &key, Transaction *transa
   bool success = bucket_page->Remove(key, cmp_);
   if (success) {
     // pass
+    DirectoryBucketMerging(directory_page, bucket_page,
+                           bucket_idx, hash);
+    while(directory_page->CanShrink()){
+      directory_page->DecrGlobalDepth();
+    }
+    VerifyIntegrity();
   }
   return success;
 }
@@ -283,37 +289,34 @@ template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::DirectoryBucketMerging(ExtendibleHTableDirectoryPage *directory,
                                                                ExtendibleHTableBucketPage<K, V, KC> *bucket_page,
                                                                uint32_t bucket_idx, uint32_t hash) {
-  auto bucket_page_id = directory->GetBucketPageId(bucket_idx);
-  auto bucket_local_depth = directory->GetLocalDepth(bucket_idx);
-  auto bucket_local_depth_bit_mask = static_cast<uint32_t>(1) << bucket_local_depth;
-  if (!bucket_page->IsEmpty()) {
+
+  if(!bucket_page->IsEmpty()){
+    return ;
+  }
+
+  uint32_t bucket_page_id = directory->GetBucketPageId(bucket_idx);
+  uint32_t local_depth_mask = directory->GetLocalDepthMask(bucket_idx);
+  uint32_t local_depth = directory->GetLocalDepth(bucket_idx);
+  uint32_t bucket_highest_bit = static_cast<uint32_t>(1) << local_depth;
+
+  uint32_t buddy_bucket_idx = bucket_idx;
+  if((hash & bucket_highest_bit) == 0){
+    buddy_bucket_idx |= bucket_highest_bit;
+  }else{
+    buddy_bucket_idx &= (~bucket_highest_bit);
+  }
+
+  auto buddy_bucket_page_id = directory->GetBucketPageId(buddy_bucket_idx);
+  auto buddy_bucket_page_guard = bpm_->FetchPageBasic(buddy_bucket_page_id);
+  auto buddy_bucket_page = buddy_bucket_page_guard.AsMut<ExtendibleHTableBucketPage<K,V,KC>>();
+  if(!buddy_bucket_page->IsEmpty()){
     return;
   }
 
-  uint32_t brother_bucket_id;
-  if ((bucket_idx & bucket_local_depth_bit_mask) == 0) {
-    brother_bucket_id = bucket_idx | bucket_local_depth_bit_mask;
-  } else {
-    brother_bucket_id = bucket_idx & (~bucket_local_depth_bit_mask);
-  }
-
-  if (directory->GetLocalDepth(bucket_idx) != directory->GetLocalDepth(brother_bucket_id)) {
-    return;
-  }
-
-  auto brother_bucket_page_guard = bpm_->FetchPageBasic(bucket_page_id);
-  auto brother_bucket_page = brother_bucket_page_guard.AsMut<ExtendibleHTableBucketPage<K, V, KC>>();
-  BUSTUB_ASSERT(brother_bucket_page != nullptr, "Can't fetch bucket page");
-
-  if (!brother_bucket_page->IsEmpty()) {
-    return;
-  }
-
-  auto merged_local_depth_mask = directory->GetLocalDepthMask(bucket_page_id) >> 1;
-  UpdateDirectoryMapping(directory, brother_bucket_id, bucket_page_id, bucket_local_depth - 1, merged_local_depth_mask);
-  UpdateDirectoryMapping(directory, bucket_idx, bucket_page_id, bucket_local_depth - 1, merged_local_depth_mask);
-
-  return;
+  auto new_local_depth_mask = (~bucket_highest_bit) & local_depth_mask;
+  UpdateDirectoryMapping(directory, bucket_idx,bucket_page_id,
+                         local_depth + 1, new_local_depth_mask);
+  DirectoryBucketMerging(directory, bucket_page, bucket_idx, hash);
 }
 
 template class DiskExtendibleHashTable<int, int, IntComparator>;
