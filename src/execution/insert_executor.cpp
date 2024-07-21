@@ -18,10 +18,29 @@ namespace bustub {
 
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
-void InsertExecutor::Init() { throw NotImplementedException("InsertExecutor is not implemented"); }
+void InsertExecutor::Init() {
+  info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
+}
 
-auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { return false; }
+auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+  while (true) {
+    // Get the next tuple
+    const auto status = child_executor_->Next(tuple, rid);
+    if (!status) {
+      return false;
+    }
+
+    const TupleMeta meta = {0 , false};
+    const auto insert = info_->table_->InsertTuple(meta, *tuple,
+                               exec_ctx_->GetLockManager(),exec_ctx_->GetTransaction(),
+                               plan_->GetTableOid());
+    if(insert.has_value()){
+      *rid = insert.value();
+      return true;
+    }
+  }
+}
 
 }  // namespace bustub

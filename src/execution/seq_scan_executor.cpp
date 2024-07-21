@@ -26,13 +26,27 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     auto tp = iterator_->GetTuple().second;
     auto tp_meta = iterator_->GetTuple().first;
     if(!tp_meta.is_deleted_){
-      auto filter_expr = plan_->filter_predicate_;
-      auto value = filter_expr->Evaluate(&tp, plan_->OutputSchema());
-      if (!value.IsNull() && value.GetAs<bool>()) {
+
+      if(plan_->filter_predicate_ != nullptr){
+
+        auto filter_expr = plan_->filter_predicate_;
+        auto value = filter_expr->Evaluate(&tp, plan_->OutputSchema());
+        if (!value.IsNull() && value.GetAs<bool>()) {
+          *tuple = std::move(tp);
+          *rid = iterator_->GetRID();
+          ++(*iterator_);
+          return true;
+        }
+
+      }else{
+
         *tuple = std::move(tp);
         *rid = iterator_->GetRID();
+        ++(*iterator_);
         return true;
+
       }
+
     }
     ++(*iterator_);
   }
