@@ -14,10 +14,12 @@
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx) , plan_(plan){}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
+    : AbstractExecutor(exec_ctx) , plan_(plan){
+  info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
+}
 
 void SeqScanExecutor::Init() {
-  info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   iterator_ = std::make_shared<TableIterator>(info_->table_->MakeIterator());
 }
 

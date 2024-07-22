@@ -18,10 +18,11 @@ namespace bustub {
 
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {
+  info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
+}
 
 void InsertExecutor::Init() {
-  info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   child_executor_->Init();
 }
 
