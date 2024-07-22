@@ -22,6 +22,7 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
 
 void InsertExecutor::Init() {
   info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
+  child_executor_->Init();
 }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
