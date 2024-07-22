@@ -30,13 +30,17 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
   const TupleMeta delete_meta = {0 , true};
 
+  Tuple child_tuple{};
   // Get the next tuple
-  const auto status = child_executor_->Next(tuple, rid);
+  const auto status = child_executor_->Next(&child_tuple, rid);
+
   if (!status) {
+    *tuple = Tuple({{Value(INTEGER, 0)}, &GetOutputSchema()});
     return false;
   }
 
   info_->table_->UpdateTupleMeta(delete_meta, *rid);
+  *tuple = Tuple({{Value(INTEGER, 1)}, &GetOutputSchema()});
   return true;
 }
 

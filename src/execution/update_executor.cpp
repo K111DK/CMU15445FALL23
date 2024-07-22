@@ -28,7 +28,6 @@ void UpdateExecutor::Init() {
 
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   //const TupleMeta delete_meta = {0,true};
-  Schema update_count_schema = Schema({{"update_count", INTEGER}});
   std::vector<Value> update_tuple{};
 
   Tuple child_tuple{};
@@ -36,7 +35,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   const TupleMeta delete_tuple = {0, true};
   if(!status){
     update_tuple.emplace_back(INTEGER, 0);
-    *tuple = Tuple(update_tuple, &update_count_schema);
+    *tuple = Tuple(update_tuple, &GetOutputSchema());
     return false;
   }
 
