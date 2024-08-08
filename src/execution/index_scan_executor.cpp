@@ -36,6 +36,7 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     auto tp = info_->table_->GetTuple(result_tmp[0]);
     if(!tp.first.is_deleted_){
       *tuple = tp.second;
+      *rid = result_tmp[0];
       return true;
     }
     return false;
