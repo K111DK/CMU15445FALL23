@@ -31,53 +31,52 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   std::vector<Value> update_tuple{};
 
   Tuple child_tuple{};
-  const auto status = child_executor_->Next(&child_tuple, rid);
-  const TupleMeta delete_tuple = {0, true};
-  if(!status){
-    update_tuple.emplace_back(INTEGER, 0);
-    *tuple = Tuple(update_tuple, &GetOutputSchema());
-    return false;
+  while(!delete_done_) {
+    const auto status = child_executor_->Next(&child_tuple, rid);
+    const TupleMeta delete_tuple = {0, true};
+
+    if (!status) {
+      update_tuple.emplace_back(INTEGER, total_update_);
+      *tuple = Tuple(update_tuple, &GetOutputSchema());
+      delete_done_ = true;
+      return true;
+    }
+
+    // delete old expression
+    table_info_->table_->UpdateTupleMeta(delete_tuple, *rid);
+
+    // delete old index
+    auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+    for (const auto &idx : index_info) {
+      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
+      auto delete_key = child_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
+                                                 hash_table->GetKeyAttrs());
+      hash_table->DeleteEntry(delete_key, *rid, exec_ctx_->GetTransaction());
+    }
+
+    // Compute update tuple
+    std::vector<Value> values{};
+    values.reserve(GetOutputSchema().GetColumnCount());
+    for (const auto &expr : plan_->target_expressions_) {
+      values.push_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
+    }
+
+    // Insert new tuple
+    Tuple insert_tuple = Tuple{values, &child_executor_->GetOutputSchema()};
+    table_info_->table_->InsertTuple({0, false}, insert_tuple, exec_ctx_->GetLockManager());
+
+    // Insert new index
+    for (const auto &idx : index_info) {
+      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
+      auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
+                                                  hash_table->GetKeyAttrs());
+      hash_table->DeleteEntry(insert_key, *rid, exec_ctx_->GetTransaction());
+    }
+
+    total_update_++;
   }
 
-  //delete old expression
-  table_info_->table_->UpdateTupleMeta(delete_tuple, *rid);
-
-  //delete old index
-  auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-  for(const auto &idx:index_info) {
-    auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-    auto delete_key = child_tuple.KeyFromTuple(
-        child_executor_->GetOutputSchema(),
-        *hash_table->GetKeySchema(),
-        hash_table->GetKeyAttrs());
-    hash_table->DeleteEntry(delete_key, *rid, exec_ctx_->GetTransaction());
-  }
-
-  // Compute update tuple
-  std::vector<Value> values{};
-  values.reserve(GetOutputSchema().GetColumnCount());
-  for (const auto &expr : plan_->target_expressions_) {
-    values.push_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
-  }
-
-  //Insert new tuple
-  Tuple insert_tuple = Tuple{values, &child_executor_->GetOutputSchema()};
-  table_info_->table_->InsertTuple({0, false}, insert_tuple,
-                                   exec_ctx_->GetLockManager());
-
-  //Insert new index
-  for(const auto &idx:index_info) {
-    auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-    auto insert_key = insert_tuple.KeyFromTuple(
-        child_executor_->GetOutputSchema(),
-        *hash_table->GetKeySchema(),
-        hash_table->GetKeyAttrs());
-    hash_table->DeleteEntry(insert_key, *rid, exec_ctx_->GetTransaction());
-  }
-
-  update_tuple.emplace_back(INTEGER, 1);
-  *tuple = Tuple(update_tuple, &GetOutputSchema());
-  return true;
+  return false;
 }
 
 }  // namespace bustub

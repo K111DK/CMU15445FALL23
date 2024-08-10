@@ -15,7 +15,6 @@ auto Optimizer::OptimizeMergeFilterScan(const AbstractPlanNodeRef &plan) -> Abst
   for (const auto &child : plan->GetChildren()) {
     children.emplace_back(OptimizeMergeFilterScan(child));
   }
-
   auto optimized_plan = plan->CloneWithChildren(std::move(children));
 
   if (optimized_plan->GetType() == PlanType::Filter) {
@@ -35,3 +34,8 @@ auto Optimizer::OptimizeMergeFilterScan(const AbstractPlanNodeRef &plan) -> Abst
 }
 
 }  // namespace bustub
+//CREATE TABLE t1(v1 int, v2 int);
+//CREATE INDEX t1v1 ON t1(v1);
+//EXPLAIN (o,s) SELECT * FROM t1 WHERE v1 = 1;
+//=== OPTIMIZER ===
+//                      IndexScan { index_oid=0, filter=(#0.0=1) } | (t1.v1:INTEGER, t1.v2:INTEGER)

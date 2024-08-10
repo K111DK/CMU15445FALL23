@@ -27,11 +27,16 @@ void InsertExecutor::Init() {
 }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  while (true) {
+  std::vector<Value> update_tuple{};
+
+  while (!insert_done_) {
     // Get the next tuple
     const auto status = child_executor_->Next(tuple, rid);
     if (!status) {
-      return false;
+      update_tuple.emplace_back(INTEGER, total_insert_);
+      *tuple = Tuple(update_tuple, &GetOutputSchema());
+      insert_done_ = true;
+      return true;
     }
 
     const TupleMeta meta = {0 , false};
@@ -54,10 +59,11 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
                                 *rid,
                                 exec_ctx_->GetTransaction());
       }
-
-      return true;
+      total_insert_++;
     }
   }
+
+  return false;
 }
 
 }  // namespace bustub
