@@ -63,14 +63,17 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
     // Insert new tuple
     Tuple insert_tuple = Tuple{values, &child_executor_->GetOutputSchema()};
-    table_info_->table_->InsertTuple({0, false}, insert_tuple, exec_ctx_->GetLockManager());
-
+    auto insert_rid = table_info_->table_->InsertTuple({0, false}, insert_tuple, exec_ctx_->GetLockManager());
+    BUSTUB_ASSERT(insert_rid.has_value(), "Insert fail!");
     // Insert new index
     for (const auto &idx : index_info) {
       auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
       auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
                                                   hash_table->GetKeyAttrs());
-      hash_table->DeleteEntry(insert_key, *rid, exec_ctx_->GetTransaction());
+      bool success = hash_table->InsertEntry(insert_key, insert_rid.value(), exec_ctx_->GetTransaction());
+      if(!success){
+        BUSTUB_ASSERT(0, "Error: Index insert error");
+      }
     }
 
     total_update_++;

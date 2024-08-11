@@ -47,5 +47,6 @@ class IndexScanExecutor : public AbstractExecutor {
   TableInfo * info_;
   IndexInfo * index_info_;
   HashTableIndexForTwoIntegerColumn * htable_;
+  std::atomic_bool done_ = false;
 };
 }  // namespace bustub
