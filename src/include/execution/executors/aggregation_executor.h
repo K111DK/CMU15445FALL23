@@ -71,14 +71,47 @@ class SimpleAggregationHashTable {
    * @param input The input value
    */
   void CombineAggregateValues(AggregateValue *result, const AggregateValue &input) {
+    std::vector<Value> values{};
     for (uint32_t i = 0; i < agg_exprs_.size(); i++) {
+
+      const Value & input_val = input.aggregates_[i];
+      Value & result_val = result->aggregates_[i];
+
+      if(input_val.IsNull()){
+        continue ;
+      }
+
       switch (agg_types_[i]) {
         case AggregationType::CountStarAggregate:
         case AggregationType::CountAggregate:
-        case AggregationType::SumAggregate:
-        case AggregationType::MinAggregate:
-        case AggregationType::MaxAggregate:
+          if(result_val.IsNull()){
+            result_val = ValueFactory::GetIntegerValue(0);
+          }
+          result_val = result_val.Add(ValueFactory::GetIntegerValue(1));
           break;
+
+        case AggregationType::SumAggregate:
+          if(result_val.IsNull()){
+            result_val = ValueFactory::GetIntegerValue(0);
+          }
+          result_val = result_val.Add(input_val);
+          break ;
+        case AggregationType::MinAggregate:
+          if(result_val.IsNull()){
+            result_val = input_val;
+          }
+          if(CmpBool::CmpTrue == result_val.CompareGreaterThan(input_val)){
+            result_val = input_val;
+          }
+          break ;
+        case AggregationType::MaxAggregate:
+          if(result_val.IsNull()){
+            result_val = input_val;
+          }
+          if(CmpBool::CmpTrue == result_val.CompareLessThan(input_val)){
+            result_val = input_val;
+          }
+          break ;
       }
     }
   }
@@ -203,9 +236,13 @@ class AggregationExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
 
   /** Simple aggregation hash table */
-  // TODO(Student): Uncomment SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
 
   /** Simple aggregation hash table iterator */
-  // TODO(Student): Uncomment SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable::Iterator aht_iterator_;
+
+  std::atomic_bool done_ = false;
+
+  uint64_t agg_cnt_ = 0;
 };
 }  // namespace bustub

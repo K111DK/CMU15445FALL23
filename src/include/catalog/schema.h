@@ -42,7 +42,6 @@ class Schema {
     }
     return Schema{cols};
   }
-
   /** @return all the columns in the schema */
   auto GetColumns() const -> const std::vector<Column> & { return columns_; }
 
