@@ -26,7 +26,9 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
     }
 }
 
-void IndexScanExecutor::Init() {}
+void IndexScanExecutor::Init() {
+    done_ = false;
+}
 
 auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 

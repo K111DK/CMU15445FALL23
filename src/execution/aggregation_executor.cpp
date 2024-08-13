@@ -42,6 +42,9 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
 
 void AggregationExecutor::Init() {
   child_executor_->Init();
+  agg_cnt_ = 0;
+  done_ = false;
+  aht_.Clear();
   while(true){
     Tuple child_tuple{};
     RID rid{};
