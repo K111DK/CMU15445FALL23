@@ -74,8 +74,11 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
   if (optimized_plan->GetType() == PlanType::NestedLoopJoin) {
     const auto &nested_join_plan = dynamic_cast<const NestedLoopJoinPlanNode &>(*optimized_plan);
     if(nested_join_plan.predicate_ != nullptr){
+
       std::vector<AbstractExpressionRef> left_key_expressions{};
       std::vector<AbstractExpressionRef> right_key_expressions{};
+
+      //  recursively check if nestedLoopJoin plan can transform into HashJoin
       bool can_optimize = PredicateHashJoinable(nested_join_plan.predicate_,
                                           &left_key_expressions,
                                           &right_key_expressions);
