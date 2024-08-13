@@ -21,45 +21,54 @@ namespace bustub {
 auto PredicateHashJoinable(const AbstractExpressionRef& predicate,
                                 std::vector<AbstractExpressionRef> *left_key_expr,
                                 std::vector<AbstractExpressionRef> *right_key_expr) -> bool {
-  if(predicate->GetChildren().size() == 2){
-    if(auto cmp_expr = std::dynamic_pointer_cast<ComparisonExpression>(predicate)){
-      if(cmp_expr->comp_type_ != ComparisonType::Equal){
-        return false;
-      }
-      auto left_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[0]);
-      auto right_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[1]);
-      if(left_expr && right_expr){
-        if(left_expr->GetTupleIdx() == 0){
-          left_key_expr->emplace_back(left_expr);
-          if(right_expr->GetTupleIdx() == 1){
-            right_key_expr->emplace_back(right_expr);
-            return true;
-          }
-          return false;
-        }
-        right_key_expr->emplace_back(left_expr);
-        if(right_expr->GetTupleIdx() == 0){
-          left_key_expr->emplace_back(right_expr);
-          return true;
-        }
-        return false;
-      }
+
+  // Predicate must have exactly 2 children
+  if(predicate->GetChildren().size() != 2){
+    return false;
+  }
+
+  // Predicate: <Child expr1> AND <Child expr2>
+  if(auto and_exp = std::dynamic_pointer_cast<LogicExpression>(predicate)){
+
+    if(and_exp->logic_type_ != LogicType::And){
+      return false;
     }
 
-    if(auto and_exp = std::dynamic_pointer_cast<LogicExpression>(predicate)){
-      if(and_exp->logic_type_ != LogicType::And){
-        return false;
-      }
-      if(!PredicateHashJoinable(predicate->children_[0],left_key_expr,right_key_expr)){
-        return false;
-      }
+    return PredicateHashJoinable(predicate->children_[0],left_key_expr,right_key_expr)
+          && PredicateHashJoinable(predicate->children_[1],left_key_expr,right_key_expr);
 
-      if(!PredicateHashJoinable(predicate->children_[1],left_key_expr,right_key_expr)){
-        return false;
-      }
+  }
+
+
+  // Predicate: <Column i> = <Column j>
+  if(auto cmp_expr = std::dynamic_pointer_cast<ComparisonExpression>(predicate)){
+
+    if(cmp_expr->comp_type_ != ComparisonType::Equal){
+      return false;
+    }
+
+    auto left_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[0]);
+    auto right_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[1]);
+
+    if(left_expr && right_expr){
+      return false;
+    }
+
+    if(left_expr->GetTupleIdx() == 0 && right_expr->GetTupleIdx() == 1){
+      left_key_expr->emplace_back(left_expr);
+      right_key_expr->emplace_back(right_expr);
       return true;
     }
+
+    if(left_expr->GetTupleIdx() == 1 && right_expr->GetTupleIdx() == 0){
+      right_key_expr->emplace_back(left_expr);
+      left_key_expr->emplace_back(right_expr);
+      return true;
+    }
+
+
   }
+
   return false;
 }
 
@@ -102,6 +111,7 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
             left_key_expressions,right_key_expressions,
             nested_join_plan.GetJoinType());
       }
+
     }
   }
   return optimized_plan;
