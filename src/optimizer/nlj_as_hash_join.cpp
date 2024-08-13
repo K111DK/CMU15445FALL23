@@ -14,6 +14,7 @@
 #include "execution/plans/projection_plan.h"
 #include "optimizer/optimizer.h"
 #include "type/type_id.h"
+#include "execution/expressions/logic_expression.h"
 
 namespace bustub {
 
@@ -21,42 +22,43 @@ auto PredicateHashJoinable(const AbstractExpressionRef& predicate,
                                 std::vector<AbstractExpressionRef> *left_key_expr,
                                 std::vector<AbstractExpressionRef> *right_key_expr) -> bool {
   if(predicate->GetChildren().size() == 2){
-    auto cmp_expr = std::dynamic_pointer_cast<ComparisonExpression>(predicate);
-
-    if(cmp_expr == nullptr){
-      return false;
-    }
-
-    if(cmp_expr->comp_type_ != ComparisonType::Equal){
-      return false;
-    }
-    auto left_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[0]);
-    auto right_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[1]);
-    if(left_expr && right_expr){
-      if(left_expr->GetTupleIdx() == 0){
-        left_key_expr->emplace_back(left_expr);
-        if(right_expr->GetTupleIdx() == 1){
-          right_key_expr->emplace_back(right_expr);
+    if(auto cmp_expr = std::dynamic_pointer_cast<ComparisonExpression>(predicate)){
+      if(cmp_expr->comp_type_ != ComparisonType::Equal){
+        return false;
+      }
+      auto left_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[0]);
+      auto right_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[1]);
+      if(left_expr && right_expr){
+        if(left_expr->GetTupleIdx() == 0){
+          left_key_expr->emplace_back(left_expr);
+          if(right_expr->GetTupleIdx() == 1){
+            right_key_expr->emplace_back(right_expr);
+            return true;
+          }
+          return false;
+        }
+        right_key_expr->emplace_back(left_expr);
+        if(right_expr->GetTupleIdx() == 0){
+          left_key_expr->emplace_back(right_expr);
           return true;
         }
         return false;
       }
-      right_key_expr->emplace_back(left_expr);
-      if(right_expr->GetTupleIdx() == 0){
-        left_key_expr->emplace_back(right_expr);
-        return true;
+    }
+
+    if(auto and_exp = std::dynamic_pointer_cast<LogicExpression>(predicate)){
+      if(and_exp->logic_type_ != LogicType::And){
+        return false;
       }
-      return false;
-    }
-
-    if(!PredicateHashJoinable(predicate->children_[0],left_key_expr,right_key_expr)){
+      if(!PredicateHashJoinable(predicate->children_[0],left_key_expr,right_key_expr)){
         return false;
-    }
+      }
 
-    if(!PredicateHashJoinable(predicate->children_[1],left_key_expr,right_key_expr)){
+      if(!PredicateHashJoinable(predicate->children_[1],left_key_expr,right_key_expr)){
         return false;
+      }
+      return true;
     }
-    return true;
   }
   return false;
 }
@@ -69,19 +71,29 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
   for (const auto &child : plan->GetChildren()) {
     children.emplace_back(OptimizeNLJAsHashJoin(child));
   }
+
+  std::vector<AbstractExpressionRef> left_key_expressions{};
+  std::vector<AbstractExpressionRef> right_key_expressions{};
+
   auto optimized_plan = plan->CloneWithChildren(std::move(children));
+  if(optimized_plan->GetType() == PlanType::Filter){
+    const auto &filter_plan = dynamic_cast<const FilterPlanNode &>(*optimized_plan);
+    if(filter_plan.GetChildren().size() == 1
+        && filter_plan.GetChildAt(0)->GetType() == PlanType::NestedLoopJoin){
+        auto new_plan = OptimizeMergeFilterNLJ(plan);
+        return OptimizeNLJAsHashJoin(new_plan);
+    }
+  }
 
   if (optimized_plan->GetType() == PlanType::NestedLoopJoin) {
     const auto &nested_join_plan = dynamic_cast<const NestedLoopJoinPlanNode &>(*optimized_plan);
     if(nested_join_plan.predicate_ != nullptr){
 
-      std::vector<AbstractExpressionRef> left_key_expressions{};
-      std::vector<AbstractExpressionRef> right_key_expressions{};
-
       //  recursively check if nestedLoopJoin plan can transform into HashJoin
       bool can_optimize = PredicateHashJoinable(nested_join_plan.predicate_,
                                           &left_key_expressions,
                                           &right_key_expressions);
+
       if(can_optimize){
         return std::make_shared<HashJoinPlanNode>(
             std::make_shared<Schema>(nested_join_plan.OutputSchema()),
