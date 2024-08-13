@@ -11,6 +11,7 @@
 #include "concurrency/transaction.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
+#include "execution/plans/filter_plan.h"
 
 namespace bustub {
 
@@ -113,6 +114,7 @@ class Optimizer {
   const Catalog &catalog_;
 
   const bool force_starter_rule_;
+
 };
 
 }  // namespace bustub
