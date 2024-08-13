@@ -76,18 +76,16 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
     if(nested_join_plan.predicate_ != nullptr){
       std::vector<AbstractExpressionRef> left_key_expressions{};
       std::vector<AbstractExpressionRef> right_key_expressions{};
-      bool status = PredicateHashJoinable(nested_join_plan.predicate_,
+      bool can_optimize = PredicateHashJoinable(nested_join_plan.predicate_,
                                           &left_key_expressions,
                                           &right_key_expressions);
-      if(status){
-                std::shared_ptr<HashJoinPlanNode> hash_join_plan_ref = std::make_shared<HashJoinPlanNode>(
-                std::make_shared<Schema>(nested_join_plan.OutputSchema()),
-                plan->GetChildAt(0),
-                plan->GetChildAt(1),
-                left_key_expressions,
-                right_key_expressions,
-                nested_join_plan.GetJoinType());
-        return hash_join_plan_ref;
+      if(can_optimize){
+        return std::make_shared<HashJoinPlanNode>(
+            std::make_shared<Schema>(nested_join_plan.OutputSchema()),
+            plan->GetChildAt(0),
+            plan->GetChildAt(1),
+            left_key_expressions,right_key_expressions,
+            nested_join_plan.GetJoinType());
       }
     }
   }
