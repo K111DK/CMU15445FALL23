@@ -50,7 +50,7 @@ auto PredicateHashJoinable(const AbstractExpressionRef& predicate,
     auto left_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[0]);
     auto right_expr = std::dynamic_pointer_cast<ColumnValueExpression>(predicate->children_[1]);
 
-    if(left_expr && right_expr){
+    if(!left_expr || !right_expr){
       return false;
     }
 
@@ -98,7 +98,7 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
     const auto &nested_join_plan = dynamic_cast<const NestedLoopJoinPlanNode &>(*optimized_plan);
     if(nested_join_plan.predicate_ != nullptr){
 
-      //  recursively check if nestedLoopJoin plan can transform into HashJoin
+      //  recursively check if LoopJoin plan can be transformed into HashJoin
       bool can_optimize = PredicateHashJoinable(nested_join_plan.predicate_,
                                           &left_key_expressions,
                                           &right_key_expressions);
