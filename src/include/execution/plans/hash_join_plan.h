@@ -80,4 +80,74 @@ class HashJoinPlanNode : public AbstractPlanNode {
   auto PlanNodeToString() const -> std::string override;
 };
 
+/** JoinKey represents a key in an join operation */
+struct JoinKey {
+  /** The group-by values */
+  std::vector<Value> join_key_;
+
+  /**
+   * Compares two join keys for equality.
+   * @param other the other join key to be compared with
+   * @return `true` if both join keys have equivalent bucket id, `false` otherwise
+   */
+  auto operator==(const JoinKey &other) const -> bool {
+    for (uint32_t i = 0; i < other.join_key_.size(); i++) {
+      if (join_key_[i].CompareEquals(other.join_key_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+/** JoinValue represents a value in an join operation */
+struct JoinValue {
+  std::vector<Value> val_;
+  /**
+   * Compares two join val for equality.
+   * @param other the other join val to be compared with
+   * @return `true` if both join val are equivalent, `false` otherwise
+   */
+  auto operator==(const JoinValue &other) const -> bool {
+    for (uint32_t i = 0; i < other.val_.size(); i++) {
+      if (val_[i].CompareEquals(other.val_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+/** JoinValueBucket represents a bucket for each of the joinKey */
+struct JoinValueBucket {
+  /** The join values bucket */
+  std::vector<JoinValue> val_bucket_;
+
+  auto operator+=(const JoinValue &&other) -> void {
+    val_bucket_.emplace_back(other);
+  }
+
+  auto operator+=(const JoinValue &other) -> void {
+    val_bucket_.emplace_back(other);
+  }
+};
+
 }  // namespace bustub
+
+namespace std {
+
+/** Implements std::hash on JoinKey */
+template <>
+struct hash<bustub::JoinKey> {
+  auto operator()(const bustub::JoinKey &join_key) const -> std::size_t {
+    size_t curr_hash = 0;
+    for (const auto &key : join_key.join_key_) {
+      if (!key.IsNull()) {
+        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return curr_hash;
+  }
+};
+
+}  // namespace std
