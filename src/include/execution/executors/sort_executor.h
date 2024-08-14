@@ -55,8 +55,6 @@ class SortExecutor : public AbstractExecutor {
     explicit OrderByCmp(const std::vector<std::pair<OrderByType, AbstractExpressionRef>>& order_bys,
                         const Schema& schema):order_bys_(order_bys),schema_(schema){};
     auto operator()(const Tuple &a, const Tuple &b) -> bool{
-      // DES <=> swap i.i.f a < b (less)
-      // AES <=> swap i.i.f a > b (!less)
       for(const auto &order_by_pair: order_bys_){
         BUSTUB_ASSERT(order_by_pair.first != OrderByType::INVALID, "Invalid OrderBy type!");
         auto expr = order_by_pair.second;
@@ -68,9 +66,9 @@ class SortExecutor : public AbstractExecutor {
 
         auto less = val_a.CompareLessThan(val_b) == CmpBool::CmpTrue;
         if(order_by_pair.first == OrderByType::DESC){
-          return less;
+          return !less;
         }
-        return !less;
+        return less;
 
       }
       return true;
@@ -84,7 +82,7 @@ class SortExecutor : public AbstractExecutor {
   /** The sort plan node to be executed */
   const SortPlanNode *plan_;
 
-  std::unique_ptr<AbstractExecutor> &child_executor_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
   std::shared_ptr<std::vector<Tuple>> store_tuple_ref_ = nullptr;
 };
 }  // namespace bustub
