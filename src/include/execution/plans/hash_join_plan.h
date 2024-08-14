@@ -19,6 +19,7 @@
 #include "binder/table_ref/bound_join_ref.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
+#include "common/util/hash_util.h"
 
 namespace bustub {
 
@@ -103,6 +104,7 @@ struct JoinKey {
 /** JoinValue represents a value in an join operation */
 struct JoinValue {
   std::vector<Value> val_;
+  bool been_compared_ = false;
   /**
    * Compares two join val for equality.
    * @param other the other join val to be compared with
