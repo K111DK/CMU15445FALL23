@@ -88,7 +88,7 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
   if(optimized_plan->GetType() == PlanType::Filter && optimized_plan->GetChildren().size() == 1
       && optimized_plan->GetChildAt(0)->GetType() == PlanType::NestedLoopJoin){
     auto merge_filter_plan = OptimizeMergeFilterNLJ(std::move(optimized_plan));
-    return OptimizeNLJAsHashJoin(merge_filter_plan);
+    optimized_plan = merge_filter_plan->CloneWithChildren(merge_filter_plan->GetChildren());
   }
 
   if (optimized_plan->GetType() == PlanType::NestedLoopJoin) {
