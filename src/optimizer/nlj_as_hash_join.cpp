@@ -106,8 +106,8 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
       if(can_optimize){
         return std::make_shared<HashJoinPlanNode>(
             std::make_shared<Schema>(nested_join_plan.OutputSchema()),
-            plan->GetChildAt(0),
-            plan->GetChildAt(1),
+            optimized_plan->GetChildAt(0),
+            optimized_plan->GetChildAt(1),
             left_key_expressions,right_key_expressions,
             nested_join_plan.GetJoinType());
       }
