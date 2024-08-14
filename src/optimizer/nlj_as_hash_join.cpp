@@ -85,13 +85,10 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
   std::vector<AbstractExpressionRef> right_key_expressions{};
 
   auto optimized_plan = plan->CloneWithChildren(std::move(children));
-  if(optimized_plan->GetType() == PlanType::Filter){
-    const auto &filter_plan = dynamic_cast<const FilterPlanNode &>(*optimized_plan);
-    if(filter_plan.GetChildren().size() == 1
-        && filter_plan.GetChildAt(0)->GetType() == PlanType::NestedLoopJoin){
-        auto new_plan = OptimizeMergeFilterNLJ(plan);
-        return OptimizeNLJAsHashJoin(new_plan);
-    }
+  if(optimized_plan->GetType() == PlanType::Filter && optimized_plan->GetChildren().size() == 1
+      && optimized_plan->GetChildAt(0)->GetType() == PlanType::NestedLoopJoin){
+    auto merge_filter_plan = OptimizeMergeFilterNLJ(std::move(optimized_plan));
+    return OptimizeNLJAsHashJoin(merge_filter_plan);
   }
 
   if (optimized_plan->GetType() == PlanType::NestedLoopJoin) {
