@@ -73,45 +73,44 @@ class SimpleAggregationHashTable {
   void CombineAggregateValues(AggregateValue *result, const AggregateValue &input) {
     std::vector<Value> values{};
     for (uint32_t i = 0; i < agg_exprs_.size(); i++) {
+      const Value &input_val = input.aggregates_[i];
+      Value &result_val = result->aggregates_[i];
 
-      const Value & input_val = input.aggregates_[i];
-      Value & result_val = result->aggregates_[i];
-
-      if(input_val.IsNull()){
-        continue ;
+      if (input_val.IsNull()) {
+        continue;
       }
 
       switch (agg_types_[i]) {
         case AggregationType::CountStarAggregate:
         case AggregationType::CountAggregate:
-          if(result_val.IsNull()){
+          if (result_val.IsNull()) {
             result_val = ValueFactory::GetIntegerValue(0);
           }
           result_val = result_val.Add(ValueFactory::GetIntegerValue(1));
           break;
 
         case AggregationType::SumAggregate:
-          if(result_val.IsNull()){
+          if (result_val.IsNull()) {
             result_val = ValueFactory::GetIntegerValue(0);
           }
           result_val = result_val.Add(input_val);
-          break ;
+          break;
         case AggregationType::MinAggregate:
-          if(result_val.IsNull()){
+          if (result_val.IsNull()) {
             result_val = input_val;
           }
-          if(CmpBool::CmpTrue == result_val.CompareGreaterThan(input_val)){
+          if (CmpBool::CmpTrue == result_val.CompareGreaterThan(input_val)) {
             result_val = input_val;
           }
-          break ;
+          break;
         case AggregationType::MaxAggregate:
-          if(result_val.IsNull()){
+          if (result_val.IsNull()) {
             result_val = input_val;
           }
-          if(CmpBool::CmpTrue == result_val.CompareLessThan(input_val)){
+          if (CmpBool::CmpTrue == result_val.CompareLessThan(input_val)) {
             result_val = input_val;
           }
-          break ;
+          break;
       }
     }
   }

@@ -18,21 +18,18 @@ namespace bustub {
 
 DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx),plan_(plan),child_executor_(std::move(child_executor)) {
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {
   info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
 }
 
-void DeleteExecutor::Init() {
-  child_executor_->Init();
-}
+void DeleteExecutor::Init() { child_executor_->Init(); }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-
-  const TupleMeta delete_meta = {0 , true};
+  const TupleMeta delete_meta = {0, true};
 
   Tuple child_tuple{};
   // Get the next tuple
-  while(!delete_done_) {
+  while (!delete_done_) {
     const auto status = child_executor_->Next(&child_tuple, rid);
 
     if (!status) {

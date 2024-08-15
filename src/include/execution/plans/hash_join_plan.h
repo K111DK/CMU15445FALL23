@@ -17,9 +17,9 @@
 #include <vector>
 
 #include "binder/table_ref/bound_join_ref.h"
+#include "common/util/hash_util.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
-#include "common/util/hash_util.h"
 
 namespace bustub {
 
@@ -125,13 +125,9 @@ struct JoinValueBucket {
   /** The join values bucket */
   std::vector<JoinValue> val_bucket_;
 
-  auto operator+=(const JoinValue &&other) -> void {
-    val_bucket_.emplace_back(other);
-  }
+  auto operator+=(const JoinValue &&other) -> void { val_bucket_.emplace_back(other); }
 
-  auto operator+=(const JoinValue &other) -> void {
-    val_bucket_.emplace_back(other);
-  }
+  auto operator+=(const JoinValue &other) -> void { val_bucket_.emplace_back(other); }
 };
 
 }  // namespace bustub

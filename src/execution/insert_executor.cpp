@@ -22,9 +22,7 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
   info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
 }
 
-void InsertExecutor::Init() {
-  child_executor_->Init();
-}
+void InsertExecutor::Init() { child_executor_->Init(); }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   std::vector<Value> update_tuple{};
@@ -39,25 +37,18 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       return true;
     }
 
-    const TupleMeta meta = {0 , false};
-    const auto insert= info_->table_->InsertTuple(meta, *tuple,
-                                                   exec_ctx_->GetLockManager(),
-                                                   exec_ctx_->GetTransaction(),
-                                                   plan_->GetTableOid());
-    if(insert.has_value()){
+    const TupleMeta meta = {0, false};
+    const auto insert = info_->table_->InsertTuple(meta, *tuple, exec_ctx_->GetLockManager(),
+                                                   exec_ctx_->GetTransaction(), plan_->GetTableOid());
+    if (insert.has_value()) {
       *rid = insert.value();
 
       auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(info_->name_);
-      for(const auto &idx:index_info){
+      for (const auto &idx : index_info) {
         auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-        auto insert_tuple = tuple->KeyFromTuple(
-            child_executor_->GetOutputSchema(),
-            *hash_table->GetKeySchema(),
-            hash_table->GetKeyAttrs()
-            );
-        hash_table->InsertEntry(insert_tuple,
-                                *rid,
-                                exec_ctx_->GetTransaction());
+        auto insert_tuple = tuple->KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
+                                                hash_table->GetKeyAttrs());
+        hash_table->InsertEntry(insert_tuple, *rid, exec_ctx_->GetTransaction());
       }
       total_insert_++;
     }

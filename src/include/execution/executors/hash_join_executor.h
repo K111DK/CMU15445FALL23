@@ -27,7 +27,7 @@ namespace bustub {
  */
 class SimpleHashJoinTable {
  public:
-  auto Scan(const JoinKey &key) -> JoinValueBucket *{
+  auto Scan(const JoinKey &key) -> JoinValueBucket * {
     auto find_res = ht_.find(key);
     if (find_res == ht_.end()) {
       return nullptr;
@@ -38,14 +38,14 @@ class SimpleHashJoinTable {
   auto Insert(const JoinKey &key, const JoinValue &val) -> void {
     if (ht_.find(key) == ht_.end()) {
       JoinValueBucket new_bucket{};
-      new_bucket  +=  val;
+      new_bucket += val;
       ht_.insert({key, std::move(new_bucket)});
-      return ;
+      return;
     }
-    ht_[key]  += val;
+    ht_[key] += val;
   }
   /**
-     * Clear the hash table
+   * Clear the hash table
    */
   void Clear() { ht_.clear(); }
 
@@ -88,7 +88,6 @@ class SimpleHashJoinTable {
   std::unordered_map<JoinKey, JoinValueBucket> ht_;
 };
 
-
 /**
  * HashJoinExecutor executes a nested-loop JOIN on two tables.
  */
@@ -120,8 +119,10 @@ class HashJoinExecutor : public AbstractExecutor {
 
  private:
   /** @return The tuple as an JoinKey */
-  auto MakeJoinKey(const Tuple *tuple,  const Schema& schema, const std::vector<AbstractExpressionRef> & key_expr) -> JoinKey {
+  auto MakeJoinKey(const Tuple *tuple, const Schema &schema, const std::vector<AbstractExpressionRef> &key_expr)
+      -> JoinKey {
     std::vector<Value> keys{};
+    keys.reserve(key_expr.size());
     for (const auto &expr : key_expr) {
       keys.emplace_back(expr->Evaluate(tuple, schema));
     }
@@ -129,7 +130,7 @@ class HashJoinExecutor : public AbstractExecutor {
   }
 
   /** @return The tuple as an JoinValue */
-  auto MakeJoinValue(const Tuple *tuple,  const Schema& schema) -> JoinValue {
+  auto MakeJoinValue(const Tuple *tuple, const Schema &schema) -> JoinValue {
     std::vector<Value> vals;
     for (uint32_t i = 0; i < schema.GetColumnCount(); ++i) {
       vals.emplace_back(tuple->GetValue(&schema, i));
@@ -137,9 +138,9 @@ class HashJoinExecutor : public AbstractExecutor {
     return {vals};
   }
 
-  auto GetNullValueFromSchema(const Schema& schema)-> std::vector<Value> {
+  auto GetNullValueFromSchema(const Schema &schema) -> std::vector<Value> {
     std::vector<Value> empty_group_by_type{};
-    for(auto &col: schema.GetColumns()){
+    for (auto &col : schema.GetColumns()) {
       empty_group_by_type.emplace_back(ValueFactory::GetNullValueByType(col.GetType()));
     }
     return empty_group_by_type;

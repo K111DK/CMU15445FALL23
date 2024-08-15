@@ -114,7 +114,6 @@ class Optimizer {
   const Catalog &catalog_;
 
   const bool force_starter_rule_;
-
 };
 
 }  // namespace bustub

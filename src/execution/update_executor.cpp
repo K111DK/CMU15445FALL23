@@ -17,21 +17,19 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)){
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {
   // As of Fall 2022, you DON'T need to implement update executor to have perfect score in project 3 / project 4.
   table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
 }
 
-void UpdateExecutor::Init() {
-  child_executor_->Init();
-}
+void UpdateExecutor::Init() { child_executor_->Init(); }
 
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  //const TupleMeta delete_meta = {0,true};
+  // const TupleMeta delete_meta = {0,true};
   std::vector<Value> update_tuple{};
 
   Tuple child_tuple{};
-  while(!delete_done_) {
+  while (!delete_done_) {
     const auto status = child_executor_->Next(&child_tuple, rid);
     const TupleMeta delete_tuple = {0, true};
 
@@ -71,7 +69,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
                                                   hash_table->GetKeyAttrs());
       bool success = hash_table->InsertEntry(insert_key, insert_rid.value(), exec_ctx_->GetTransaction());
-      if(!success){
+      if (!success) {
         BUSTUB_ASSERT(0, "Error: Index insert error");
       }
     }
@@ -84,6 +82,6 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
 }  // namespace bustub
 //
-//create table t1(v1 int, v2 int);
-//insert into t1 values (1,1), (2,2), (3,3), (4,4);
-//update t1 set v2=114514;
+// create table t1(v1 int, v2 int);
+// insert into t1 values (1,1), (2,2), (3,3), (4,4);
+// update t1 set v2=114514;

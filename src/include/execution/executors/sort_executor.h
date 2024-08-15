@@ -23,32 +23,32 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
-class OrderByCmp{
+class OrderByCmp {
  public:
-  explicit OrderByCmp(const std::vector<std::pair<OrderByType, AbstractExpressionRef>>& order_bys,
-                      const Schema& schema):order_bys_(order_bys),schema_(schema){};
-  auto operator()(const Tuple &a, const Tuple &b) -> bool{
-    for(const auto &order_by_pair: order_bys_){
+  explicit OrderByCmp(const std::vector<std::pair<OrderByType, AbstractExpressionRef>> &order_bys, const Schema &schema)
+      : order_bys_(order_bys), schema_(schema){};
+  auto operator()(const Tuple &a, const Tuple &b) -> bool {
+    for (const auto &order_by_pair : order_bys_) {
       BUSTUB_ASSERT(order_by_pair.first != OrderByType::INVALID, "Invalid OrderBy type!");
       auto expr = order_by_pair.second;
       auto val_a = expr->Evaluate(&a, schema_);
       auto val_b = expr->Evaluate(&b, schema_);
-      if(val_a.CompareEquals(val_b) == CmpBool::CmpTrue){
-        continue ;
+      if (val_a.CompareEquals(val_b) == CmpBool::CmpTrue) {
+        continue;
       }
 
       auto less = val_a.CompareLessThan(val_b) == CmpBool::CmpTrue;
-      if(order_by_pair.first == OrderByType::DESC){
+      if (order_by_pair.first == OrderByType::DESC) {
         return !less;
       }
       return less;
-
     }
     return true;
   };
+
  private:
-  const std::vector<std::pair<OrderByType, AbstractExpressionRef>>& order_bys_;
-  const Schema& schema_;
+  const std::vector<std::pair<OrderByType, AbstractExpressionRef>> &order_bys_;
+  const Schema &schema_;
 };
 /**
  * The SortExecutor executor executes a sort.

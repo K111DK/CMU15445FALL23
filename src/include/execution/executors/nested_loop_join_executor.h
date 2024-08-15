@@ -53,35 +53,34 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   /** @return The output schema for the insert */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
-  auto static GetValueVectorFromTuple(const Schema * tp_schema, Tuple * tp) -> std::vector<Value>{
+  auto static GetValueVectorFromTuple(const Schema *tp_schema, Tuple *tp) -> std::vector<Value> {
     uint32_t col_size = tp_schema->GetColumnCount();
     std::vector<Value> val{};
-    for(uint32_t i = 0; i < col_size;++ i){
+    for (uint32_t i = 0; i < col_size; ++i) {
       val.emplace_back(tp->GetValue(tp_schema, i));
     }
     return val;
   };
 
-  auto static GetNullValueVector(const Schema * tp_schema) -> std::vector<Value>{
+  auto static GetNullValueVector(const Schema *tp_schema) -> std::vector<Value> {
     uint32_t col_size = tp_schema->GetColumnCount();
     std::vector<Value> val{};
-    for(uint32_t i = 0; i < col_size;++ i){
+    for (uint32_t i = 0; i < col_size; ++i) {
       val.emplace_back(ValueFactory::GetNullValueByType(tp_schema->GetColumn(i).GetType()));
     }
     return val;
   }
-
 
  private:
   /** The NestedLoopJoin plan node to be executed. */
   const NestedLoopJoinPlanNode *plan_;
   std::unique_ptr<AbstractExecutor> left_executor_;
   std::unique_ptr<AbstractExecutor> right_executor_;
-  Tuple left_tuple_ ;
-  Tuple right_tuple_ ;
+  Tuple left_tuple_;
+  Tuple right_tuple_;
   bool left_valid_ = false;
   bool right_found_ = false;
-  [[ maybe_unused ]] bool right_valid_ = false;
+  [[maybe_unused]] bool right_valid_ = false;
   bool done_ = false;
 };
 

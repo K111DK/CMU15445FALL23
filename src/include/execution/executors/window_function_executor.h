@@ -17,12 +17,12 @@
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
+#include "execution/executors/aggregation_executor.h"
+#include "execution/executors/sort_executor.h"
+#include "execution/plans/aggregation_plan.h"
+#include "execution/plans/sort_plan.h"
 #include "execution/plans/window_plan.h"
 #include "storage/table/tuple.h"
-#include "execution/executors/aggregation_executor.h"
-#include "execution/plans/aggregation_plan.h"
-#include "execution/executors/sort_executor.h"
-#include "execution/plans/sort_plan.h"
 
 namespace bustub {
 /**
@@ -105,40 +105,38 @@ class WindowFunctionExecutor : public AbstractExecutor {
     return {values};
   }
 
-
   /** @return The output schema for the window aggregation plan */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
-  auto GetPartitionWindowAggValue(const WindowFunctionPlanNode::WindowFunction& window_func,
-                                  const Schema& schema,
-                                  const std::vector<Tuple*>::iterator& begin,
-                                  const std::vector<Tuple*>::iterator& end) -> Value{
+  auto GetPartitionWindowAggValue(const WindowFunctionPlanNode::WindowFunction &window_func, const Schema &schema,
+                                  const std::vector<Tuple *>::iterator &begin,
+                                  const std::vector<Tuple *>::iterator &end) -> Value {
     Value agg_val = GenerateInitialWindowFuncValue(window_func.type_);
-    auto get_order_by_key = [&](Tuple & tuple)->AggregateKey{
+    auto get_order_by_key = [&](Tuple &tuple) -> AggregateKey {
       AggregateKey agg_key;
-      for(auto [type,expr]: window_func.order_by_){
+      for (auto [type, expr] : window_func.order_by_) {
         agg_key.group_bys_.emplace_back(expr->Evaluate(&tuple, schema));
       }
       return agg_key;
     };
 
-    if(window_func.type_ == WindowFunctionType::Rank){
+    if (window_func.type_ == WindowFunctionType::Rank) {
       int32_t rank = 1;
       int32_t true_rank = 1;
-      std::vector<Tuple*> tp_vec{};
-      for(auto iter = begin;iter != end ;++iter){
+      std::vector<Tuple *> tp_vec{};
+      for (auto iter = begin; iter != end; ++iter) {
         tp_vec.push_back(*iter);
       }
       std::reverse(tp_vec.begin(), tp_vec.end());
-      for(auto iter=tp_vec.begin();iter != tp_vec.end();++iter){
+      for (auto iter = tp_vec.begin(); iter != tp_vec.end(); ++iter) {
         Tuple tuple = *(*iter);
         agg_val = Value(INTEGER, rank);
         auto next = iter + 1;
         ++true_rank;
-        if(next != tp_vec.end()){
+        if (next != tp_vec.end()) {
           auto current_val = (get_order_by_key(**iter));
           auto next_val = get_order_by_key(**next);
-          if(!(current_val == next_val)){
-            rank=true_rank;
+          if (!(current_val == next_val)) {
+            rank = true_rank;
           }
         }
       }
@@ -147,51 +145,50 @@ class WindowFunctionExecutor : public AbstractExecutor {
 
     int32_t rank = 1;
     int32_t true_rank = 1;
-    for(auto iter = begin;iter != end ;++iter){
+    for (auto iter = begin; iter != end; ++iter) {
       Tuple tuple = *(*iter);
       auto val = window_func.function_->Evaluate(&tuple, schema);
       switch (window_func.type_) {
         case WindowFunctionType::CountStarAggregate:
         case WindowFunctionType::CountAggregate:
-          if(agg_val.IsNull()){
+          if (agg_val.IsNull()) {
             agg_val = ValueFactory::GetIntegerValue(0);
           }
           agg_val = agg_val.Add(Value(INTEGER, 1));
           break;
         case WindowFunctionType::SumAggregate:
-          if(agg_val.IsNull()){
+          if (agg_val.IsNull()) {
             agg_val = ValueFactory::GetIntegerValue(0);
           }
           agg_val = agg_val.Add(val);
           break;
         case WindowFunctionType::MinAggregate:
-          if(agg_val.IsNull()){
+          if (agg_val.IsNull()) {
             agg_val = val;
           }
           agg_val = agg_val.CompareLessThan(val) == CmpBool::CmpTrue ? agg_val : val;
-          break ;
+          break;
         case WindowFunctionType::MaxAggregate:
-          if(agg_val.IsNull()){
+          if (agg_val.IsNull()) {
             agg_val = val;
           }
           agg_val = agg_val.CompareGreaterThan(val) == CmpBool::CmpTrue ? agg_val : val;
-          break ;
+          break;
         case WindowFunctionType::Rank:
           // Others starts at null.
 
           agg_val = Value(INTEGER, rank);
           auto next = iter + 1;
           ++true_rank;
-          if(next != end){
+          if (next != end) {
             auto current_val = (get_order_by_key(**iter));
             auto next_val = get_order_by_key(**next);
-            if(!(current_val == next_val)){
-              rank=true_rank;
+            if (!(current_val == next_val)) {
+              rank = true_rank;
             }
           }
           break;
       }
-
     }
 
     return agg_val;
@@ -204,8 +201,7 @@ class WindowFunctionExecutor : public AbstractExecutor {
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::vector<Tuple> child_tuple_group_;
-  std::unordered_map<Tuple* , std::vector<Value>> window_value_;
+  std::unordered_map<Tuple *, std::vector<Value>> window_value_;
   std::vector<Tuple> output_tuple_;
-
 };
 }  // namespace bustub
