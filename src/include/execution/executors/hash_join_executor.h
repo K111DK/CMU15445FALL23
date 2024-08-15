@@ -89,7 +89,7 @@ struct hash<bustub::JoinKey> {
 
 }  // namespace std
 
-namespace bustub{
+namespace bustub {
 /**
  * A simplified hash table that has all the necessary functionality for aggregations.
  */

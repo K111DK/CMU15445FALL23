@@ -56,5 +56,5 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
 }  // namespace bustub
    // create table t1(v1 int, v2 int, v3 int);
-// create index t1v1 on t1(v1);
-// insert into t1 values (1, 115, 114514);
+   // create index t1v1 on t1(v1);
+   // insert into t1 values (1, 115, 114514);

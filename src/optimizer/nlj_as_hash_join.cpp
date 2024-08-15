@@ -15,8 +15,6 @@
 #include "execution/plans/projection_plan.h"
 #include "optimizer/optimizer.h"
 #include "type/type_id.h"
-#include "execution/plans/filter_plan.h"
-
 namespace bustub {
 
 auto PredicateHashJoinable(const AbstractExpressionRef &predicate, std::vector<AbstractExpressionRef> *left_key_expr,

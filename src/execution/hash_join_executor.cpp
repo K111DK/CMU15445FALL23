@@ -102,5 +102,5 @@ POP_BACKUP:
 }
 }  // namespace bustub
    // create table t1(v1 int);
-// insert into t1 values (1), (1);
-// select * from (t1 a inner join t1 b on a.v1 = b.v1) inner join t1 c on a.v1 = c.v1;
+   // insert into t1 values (1), (1);
+   // select * from (t1 a inner join t1 b on a.v1 = b.v1) inner join t1 c on a.v1 = c.v1;
