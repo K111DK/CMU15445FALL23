@@ -31,14 +31,12 @@ void WindowFunctionExecutor::Init() {
       }
       return partition_key;
     };
-
     // Do ORDER BY first
     if (have_order_by) {
       auto cmp_func = OrderByCmp(window_func.second.order_by_, child_executor_->GetOutputSchema());
       std::sort(child_tuple_group_.begin(), child_tuple_group_.end(), cmp_func);
       std::reverse(child_tuple_group_.begin(), child_tuple_group_.end());
     }
-
     // Do partition
     for (auto &tp : child_tuple_group_) {
       AggregateKey partition_key = get_partition_key(tp, child_executor_->GetOutputSchema());
@@ -50,17 +48,13 @@ void WindowFunctionExecutor::Init() {
         partition_groups[partition_key].emplace_back(&tp);
       }
     }
-
     // Do window agg
     std::vector<Value> window_agg_val;
     for (auto &partition_group_pair : partition_groups) {
       auto &partition_group = partition_group_pair.second;
-      GetPartitionWindowAggValue(window_func.second,
-                                 child_executor_->GetOutputSchema(),
-                                 partition_group.rbegin(),
-                                 partition_group.rend(),
-                                 window_agg_val);
-      for (auto iter:partition_group) {
+      GetPartitionWindowAggValue(window_func.second, child_executor_->GetOutputSchema(), partition_group.rbegin(),
+                                 partition_group.rend(), window_agg_val);
+      for (auto iter : partition_group) {
         if (window_value_.find(iter) != window_value_.end()) {
           window_value_[iter].emplace_back(std::move(window_agg_val.back()));
         } else {

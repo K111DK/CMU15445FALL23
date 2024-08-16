@@ -178,13 +178,13 @@ class WindowFunctionExecutor : public AbstractExecutor {
           break;
       }
       frame_len++;
-      if(have_order_by) {
+      if (have_order_by) {
         window_agg_val.emplace_back(agg_val);
       }
     }
 
-    if(window_agg_val.empty()) {
-      for(auto i = 0;i < frame_len;++i){
+    if (window_agg_val.empty()) {
+      for (auto i = 0; i < frame_len; ++i) {
         window_agg_val.emplace_back(agg_val);
       }
     }
