@@ -30,27 +30,24 @@ auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &pl
         auto column_exp = std::dynamic_pointer_cast<ColumnValueExpression>(filter_plan.GetPredicate()->GetChildAt(0));
         auto const_exp = std::dynamic_pointer_cast<ConstantValueExpression>(filter_plan.GetPredicate()->GetChildAt(1));
 
-        if (column_exp == nullptr || column_exp == nullptr) {
-          return std::make_shared<SeqScanPlanNode>(filter_plan.output_schema_, seq_scan_plan.table_oid_,
-                                                   seq_scan_plan.table_name_, filter_plan.GetPredicate());
-        }
-
-        auto table_info = catalog_.GetTable(seq_scan_plan.table_name_);
-        auto index = catalog_.GetTableIndexes(table_info->name_);
-        for (const auto &idx : index) {
-          auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-          BUSTUB_ASSERT(hash_table != nullptr, "Unsupport hash index!");
-          if (hash_table->GetKeyAttrs()[0] == column_exp->GetColIdx()) {
-            return std::make_shared<IndexScanPlanNode>(filter_plan.output_schema_, seq_scan_plan.table_oid_,
-                                                       idx->index_oid_, filter_plan.GetPredicate(), const_exp.get());
-          }
-        }
-
+      if (column_exp == nullptr || const_exp == nullptr) {
         return std::make_shared<SeqScanPlanNode>(filter_plan.output_schema_, seq_scan_plan.table_oid_,
                                                  seq_scan_plan.table_name_, filter_plan.GetPredicate());
       }
+
+      auto table_info = catalog_.GetTable(seq_scan_plan.table_name_);
+      auto index = catalog_.GetTableIndexes(table_info->name_);
+      for (const auto &idx : index) {
+        auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
+        BUSTUB_ASSERT(hash_table != nullptr, "Unsupport hash index!");
+        if (hash_table->GetKeyAttrs()[0] == column_exp->GetColIdx()) {
+          return std::make_shared<IndexScanPlanNode>(filter_plan.output_schema_, seq_scan_plan.table_oid_,
+                                                     idx->index_oid_, filter_plan.GetPredicate(), const_exp.get());
+        }
+      }
     }
   }
+
 
   return optimized_plan;
 }
