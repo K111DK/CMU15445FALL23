@@ -10,6 +10,14 @@
 
 namespace bustub {
 
+
+/**
+ *  Reconstruct Tuple by Undo logs
+ *  @param schema [in]  Tuple's full schema
+ *  @param base_tuple [out] Tuple to be reconstructed
+ *  @param base_meta [out]  Meta data(timestamp, is_deleted) of base tuple
+ *  @param undo_logs [in]   undo logs chain
+ * */
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple>;
 

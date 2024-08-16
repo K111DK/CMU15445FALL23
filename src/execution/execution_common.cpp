@@ -12,7 +12,14 @@ namespace bustub {
 
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple> {
-  UNIMPLEMENTED("not implemented");
+  for(auto undo_log = undo_logs.rbegin(); undo_log != undo_logs.rend(); ++undo_log){
+    if((*undo_log).is_deleted_){
+      continue ;
+    }
+
+  }
+  return {std::nullopt};
+
 }
 
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
