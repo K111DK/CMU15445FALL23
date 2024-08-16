@@ -107,9 +107,20 @@ class WindowFunctionExecutor : public AbstractExecutor {
 
   /** @return The output schema for the window aggregation plan */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
+
+  /**
+   * Get frame's aggregation values
+   * @param window_func: window function for frame, include func type, column expr, order_by expr
+   * @param schema: schema for tuple
+   * @param frame_begin: Begin tuple (rend) in frame
+   * @param frame_end: End tuple (rbegin) in frame
+   * @param[out] window_agg_val: Return window agg value
+   * @return Window agg Values for a Frame
+   * */
   auto GetPartitionWindowAggValue(const WindowFunctionPlanNode::WindowFunction &window_func, const Schema &schema,
-                                  const std::vector<Tuple *>::iterator &begin,
-                                  const std::vector<Tuple *>::iterator &end) -> Value {
+                                  const std::vector<Tuple *>::reverse_iterator &frame_begin,
+                                  const std::vector<Tuple *>::reverse_iterator &frame_end,
+                                  std::vector<Value> &window_agg_val) -> void {
     Value agg_val = GenerateInitialWindowFuncValue(window_func.type_);
     auto get_order_by_key = [&](Tuple &tuple) -> AggregateKey {
       AggregateKey agg_key;
@@ -118,34 +129,12 @@ class WindowFunctionExecutor : public AbstractExecutor {
       }
       return agg_key;
     };
-
-    if (window_func.type_ == WindowFunctionType::Rank) {
-      int32_t rank = 1;
-      int32_t true_rank = 1;
-      std::vector<Tuple *> tp_vec{};
-      for (auto iter = begin; iter != end; ++iter) {
-        tp_vec.push_back(*iter);
-      }
-      std::reverse(tp_vec.begin(), tp_vec.end());
-      for (auto iter = tp_vec.begin(); iter != tp_vec.end(); ++iter) {
-        Tuple tuple = *(*iter);
-        agg_val = Value(INTEGER, rank);
-        auto next = iter + 1;
-        ++true_rank;
-        if (next != tp_vec.end()) {
-          auto current_val = (get_order_by_key(**iter));
-          auto next_val = get_order_by_key(**next);
-          if (!(current_val == next_val)) {
-            rank = true_rank;
-          }
-        }
-      }
-      return agg_val;
-    }
+    bool have_order_by = !window_func.order_by_.empty();
 
     int32_t rank = 1;
     int32_t true_rank = 1;
-    for (auto iter = begin; iter != end; ++iter) {
+    int32_t frame_len = 0;
+    for (auto iter = frame_begin; iter != frame_end; ++iter) {
       Tuple tuple = *(*iter);
       auto val = window_func.function_->Evaluate(&tuple, schema);
       switch (window_func.type_) {
@@ -176,11 +165,10 @@ class WindowFunctionExecutor : public AbstractExecutor {
           break;
         case WindowFunctionType::Rank:
           // Others starts at null.
-
           agg_val = Value(INTEGER, rank);
           auto next = iter + 1;
           ++true_rank;
-          if (next != end) {
+          if (next != frame_end) {
             auto current_val = (get_order_by_key(**iter));
             auto next_val = get_order_by_key(**next);
             if (!(current_val == next_val)) {
@@ -189,9 +177,17 @@ class WindowFunctionExecutor : public AbstractExecutor {
           }
           break;
       }
+      frame_len++;
+      if(have_order_by) {
+        window_agg_val.emplace_back(agg_val);
+      }
     }
 
-    return agg_val;
+    if(window_agg_val.empty()) {
+      for(auto i = 0;i < frame_len;++i){
+        window_agg_val.emplace_back(agg_val);
+      }
+    }
   }
 
  private:

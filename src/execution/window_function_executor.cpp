@@ -52,23 +52,24 @@ void WindowFunctionExecutor::Init() {
     }
 
     // Do window agg
+    std::vector<Value> window_agg_val;
     for (auto &partition_group_pair : partition_groups) {
       auto &partition_group = partition_group_pair.second;
-      auto iter = partition_group.begin();
-      while (iter != partition_group.end()) {
-        auto start = have_order_by ? iter : partition_group.begin();
-        auto end = partition_group.end();
-        Value window_agg_val =
-            GetPartitionWindowAggValue(window_func.second, child_executor_->GetOutputSchema(), start, end);
-        auto res = window_value_.find(*iter);
-        if (res != window_value_.end()) {
-          window_value_[*iter].emplace_back(window_agg_val);
+      GetPartitionWindowAggValue(window_func.second,
+                                 child_executor_->GetOutputSchema(),
+                                 partition_group.rbegin(),
+                                 partition_group.rend(),
+                                 window_agg_val);
+      for (auto iter:partition_group) {
+        if (window_value_.find(iter) != window_value_.end()) {
+          window_value_[iter].emplace_back(std::move(window_agg_val.back()));
         } else {
-          window_value_[*iter] = {};
-          window_value_[*iter].emplace_back(window_agg_val);
+          window_value_[iter] = {};
+          window_value_[iter].emplace_back(std::move(window_agg_val.back()));
         }
-        ++iter;
+        window_agg_val.pop_back();
       }
+      window_agg_val.clear();
     }
   }
 
