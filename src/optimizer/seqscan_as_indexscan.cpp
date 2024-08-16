@@ -1,5 +1,7 @@
 #include "execution/expressions/column_value_expression.h"
+#include "execution/expressions/comparison_expression.h"
 #include "execution/expressions/constant_value_expression.h"
+#include "execution/expressions/logic_expression.h"
 #include "execution/plans/filter_plan.h"
 #include "execution/plans/index_scan_plan.h"
 #include "execution/plans/seq_scan_plan.h"
@@ -16,39 +18,38 @@ auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &pl
   }
   auto optimized_plan = plan->CloneWithChildren(std::move(children));
 
-  if (optimized_plan->GetType() == PlanType::Filter) {
-    const auto &filter_plan = dynamic_cast<const FilterPlanNode &>(*optimized_plan);
-    if (filter_plan.GetPredicate()->GetChildren().empty()) {
+  if (optimized_plan->GetType() == PlanType::SeqScan) {
+    const auto &seq_plan = dynamic_cast<const SeqScanPlanNode &>(*optimized_plan);
+    if (seq_plan.filter_predicate_ == nullptr) {
       return optimized_plan;
     }
-    BUSTUB_ASSERT(optimized_plan->children_.size() == 1, "must have exactly one children");
-    const auto &child_plan = *optimized_plan->children_[0];
-    if (child_plan.GetType() == PlanType::SeqScan) {
-      const auto &seq_scan_plan = dynamic_cast<const SeqScanPlanNode &>(child_plan);
-      if (seq_scan_plan.filter_predicate_ == nullptr) {
-        BUSTUB_ASSERT(filter_plan.GetChildren().size() == 1, "must have exactly one children");
-        auto column_exp = std::dynamic_pointer_cast<ColumnValueExpression>(filter_plan.GetPredicate()->GetChildAt(0));
-        auto const_exp = std::dynamic_pointer_cast<ConstantValueExpression>(filter_plan.GetPredicate()->GetChildAt(1));
+    auto compare_expr = std::dynamic_pointer_cast<ComparisonExpression>(seq_plan.filter_predicate_);
+    if (!compare_expr) {
+      return optimized_plan;
+    }
+    if (compare_expr->comp_type_ != ComparisonType::Equal) {
+      return optimized_plan;
+    }
+    auto column_exp = std::dynamic_pointer_cast<ColumnValueExpression>(seq_plan.filter_predicate_->GetChildAt(0));
+    auto const_exp = std::dynamic_pointer_cast<ConstantValueExpression>(seq_plan.filter_predicate_->GetChildAt(1));
 
-      if (column_exp == nullptr || const_exp == nullptr) {
-        return std::make_shared<SeqScanPlanNode>(filter_plan.output_schema_, seq_scan_plan.table_oid_,
-                                                 seq_scan_plan.table_name_, filter_plan.GetPredicate());
-      }
+    if (column_exp == nullptr || const_exp == nullptr) {
+      return optimized_plan;
+    }
 
-      auto table_info = catalog_.GetTable(seq_scan_plan.table_name_);
-      auto index = catalog_.GetTableIndexes(table_info->name_);
-      for (const auto &idx : index) {
-        auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-        BUSTUB_ASSERT(hash_table != nullptr, "Unsupport hash index!");
-        if (hash_table->GetKeyAttrs()[0] == column_exp->GetColIdx()) {
-          return std::make_shared<IndexScanPlanNode>(filter_plan.output_schema_, seq_scan_plan.table_oid_,
-                                                     idx->index_oid_, filter_plan.GetPredicate(), const_exp.get());
-        }
+    auto table_info = catalog_.GetTable(seq_plan.table_name_);
+    auto index = catalog_.GetTableIndexes(table_info->name_);
+    for (const auto &idx : index) {
+      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
+      BUSTUB_ASSERT(hash_table != nullptr, "Unsupport hash index!");
+      if (hash_table->GetKeyAttrs()[0] == column_exp->GetColIdx()) {
+        return std::make_shared<IndexScanPlanNode>(seq_plan.output_schema_, seq_plan.table_oid_, idx->index_oid_,
+                                                   seq_plan.filter_predicate_, const_exp.get());
       }
     }
+
+    return optimized_plan;
   }
-
-
   return optimized_plan;
 }
 
