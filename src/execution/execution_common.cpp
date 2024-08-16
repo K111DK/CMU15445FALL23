@@ -12,13 +12,40 @@ namespace bustub {
 
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple> {
-  for(auto undo_log = undo_logs.rbegin(); undo_log != undo_logs.rend(); ++undo_log){
-    if((*undo_log).is_deleted_){
+  std::vector<Value> base_value{};
+  bool is_delete = base_meta.is_deleted_;
+  for(uint32_t i=0; i < schema->GetColumnCount(); ++i){
+    base_value.emplace_back(base_tuple.GetValue(schema, i));
+  }
+  for(const auto & undo_log : undo_logs){
+    uint32_t i = 0;
+    std::vector<uint32_t> modify_idx;
+
+    for(auto modify:undo_log.modified_fields_){
+      if(modify){
+        modify_idx.emplace_back(i);
+      }
+      i++;
+    }
+
+    auto modify_schema =  Schema::CopySchema(schema, modify_idx);
+
+    if(undo_log.is_deleted_){
+      is_delete = true;
       continue ;
     }
 
+    is_delete = false;
+    for(i = 0; i < modify_idx.size(); ++i){
+      base_value[ modify_idx[i] ] = undo_log.tuple_.GetValue(&modify_schema,i);
+    }
+
   }
-  return {std::nullopt};
+
+  if(is_delete){
+    return {std::nullopt};
+  }
+  return {{base_value, schema}};
 
 }
 
