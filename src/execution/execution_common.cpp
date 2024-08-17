@@ -9,6 +9,38 @@
 #include "type/value_factory.h"
 
 namespace bustub {
+auto ModifyTupleToString(const Schema *schema, const UndoLog &undo_log ){
+  uint32_t i = 0;
+  uint32_t modify_field = 0;
+  std::vector<uint32_t> modify_idx;
+  std::vector<Value> base_value;
+  std::string modify_string;
+  modify_string += "(";
+  for(auto modify:undo_log.modified_fields_){
+    if(modify){
+      modify_idx.emplace_back(i);
+    }
+    i++;
+  }
+  auto modify_schema =  Schema::CopySchema(schema, modify_idx);
+  size_t cc = 0;
+  for(auto modify:undo_log.modified_fields_){
+    cc++;
+    if(modify){
+      modify_string += undo_log.tuple_.GetValue(&modify_schema, modify_field).ToString();
+      modify_field++;
+    }else{
+      modify_string += "_";
+    }
+    if(cc == undo_log.modified_fields_.size()){
+      modify_string += ")";
+    }else{
+      modify_string += ", ";
+    }
+  }
+
+  return modify_string;
+}
 
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple> {
@@ -68,12 +100,27 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
                TableHeap *table_heap) {
   // always use stderr for printing logs...
   fmt::println(stderr, "debug_hook: {}", info);
-
-  fmt::println(
-      stderr,
-      "You see this line of text because you have not implemented `TxnMgrDbg`. You should do this once you have "
-      "finished task 2. Implementing this helper function will save you a lot of time for debugging in later tasks.");
-
+  for(auto [page_id, page_version_info]:txn_mgr->version_info_){
+    for(auto [slot_num ,link]:page_version_info->prev_version_){
+      RID rid(page_id, slot_num);
+      auto rid_current_ts = table_heap->GetTuple(rid).first.ts_ > TXN_START_ID ? table_heap->GetTuple(rid).first.ts_ - TXN_START_ID:
+                                                                               table_heap->GetTuple(rid).first.ts_;
+      fmt::println(stderr, "RID={}/{}  (ts={}{})  Tuple={}",
+                   page_id,slot_num,
+                   table_heap->GetTuple(rid).first.ts_ > TXN_START_ID ? "Txn@":"",rid_current_ts,
+                   table_heap->GetTuple(rid).first.is_deleted_?"<deleted>":table_heap->GetTuple(rid).second.ToString(&table_info->schema_));
+      auto undo_link = txn_mgr->GetUndoLink(rid);
+      while(undo_link.has_value() && undo_link->IsValid()){
+        auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
+        fmt::println(stderr, "         (ts={})  Txn@{}  Modify={}"
+                     , undo_log.ts_
+                     , undo_link.value().prev_txn_ - TXN_START_ID
+                     , undo_log.is_deleted_?"<deleted>":ModifyTupleToString(&table_info->schema_, undo_log));
+        undo_link = undo_log.prev_version_;
+      }
+      fmt::println(stderr, "");
+    }
+  }
   // We recommend implementing this function as traversing the table heap and print the version chain. An example output
   // of our reference solution:
   //

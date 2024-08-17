@@ -37,7 +37,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
     // Tuple in heap is modified by other txn
     if( tp_meta.ts_ != txn_id_readable + TXN_START_ID
-        && tp_meta.ts_ != read_ts ){
+        && tp_meta.ts_ > read_ts ){
 
       // Get all undo logs;
       auto undo_logs =
