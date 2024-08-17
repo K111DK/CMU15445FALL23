@@ -112,7 +112,7 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
       auto undo_link = txn_mgr->GetUndoLink(rid);
       while(undo_link.has_value() && undo_link->IsValid()){
         auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
-        fmt::println(stderr, "         (ts={})  Txn@{}  Modify={}"
+        fmt::println(stderr, "         (ts={})  Txn@{}  Modify:{}"
                      , undo_log.ts_
                      , undo_link.value().prev_txn_ - TXN_START_ID
                      , undo_log.is_deleted_?"<deleted>":ModifyTupleToString(&table_info->schema_, undo_log));
