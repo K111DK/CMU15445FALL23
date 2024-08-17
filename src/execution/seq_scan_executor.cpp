@@ -41,7 +41,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
       std::vector<UndoLog> undo_logs;
       // Get all undo logs;
-      bool do_rebuild = GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(),
+      bool got_valid_record = GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(),
                              read_ts,
                              tp.GetRid(),
                              undo_logs);
@@ -56,7 +56,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         tp = reconstruct_tp.value();
       }
 
-      is_deleted = !reconstruct_tp.has_value() || !do_rebuild;
+      is_deleted = !reconstruct_tp.has_value() || !got_valid_record;
     }
 
     if(!is_deleted) {

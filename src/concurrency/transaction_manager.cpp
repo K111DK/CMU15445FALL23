@@ -52,7 +52,9 @@ auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { return true; }
 
 auto TransactionManager::Commit(Transaction *txn) -> bool {
   std::unique_lock<std::mutex> commit_lck(commit_mutex_);
-
+  if(txn->GetTransactionId() == INVALID_TXN_ID){
+    return true;
+  }
   // TODO(fall2023): acquire commit ts!
   auto commit_ts = last_commit_ts_ + 1;
 
@@ -80,6 +82,7 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
     for(auto rid:rid_sets) {
       auto [meta, tuple] = table_info->table_->GetTuple(rid);
       meta.ts_ = commit_ts;
+      table_info->table_->UpdateTupleMeta(meta, rid);
     }
   }
 
