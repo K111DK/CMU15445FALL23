@@ -11,7 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include <memory>
-
+#include "concurrency/transaction_manager.h"
+#include "concurrency/transaction.h"
 #include "execution/executors/insert_executor.h"
 
 namespace bustub {
@@ -37,11 +38,18 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       return true;
     }
 
-    const TupleMeta meta = {0, false};
+    auto insert_ts = exec_ctx_->GetTransaction()->GetTransactionIdHumanReadable()
+                     + TXN_START_ID;
+    const TupleMeta meta = {insert_ts, false};
     const auto insert = info_->table_->InsertTuple(meta, *tuple, exec_ctx_->GetLockManager(),
                                                    exec_ctx_->GetTransaction(), plan_->GetTableOid());
     if (insert.has_value()) {
       *rid = insert.value();
+      //Append write set
+      exec_ctx_->GetTransaction()->AppendWriteSet(info_->oid_, insert.value());
+      //Update undo log
+      exec_ctx_->GetTransactionManager()->UpdateUndoLink(insert.value(),
+                                                         std::nullopt);
 
       auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(info_->name_);
       for (const auto &idx : index_info) {
