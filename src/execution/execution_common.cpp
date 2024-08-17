@@ -9,6 +9,51 @@
 #include "type/value_factory.h"
 
 namespace bustub {
+
+auto GetTupleValueVector(const Schema *schema, const Tuple &tuple, std::vector<Value> &value){
+  for(uint32_t i=0; i < schema->GetColumnCount(); ++i){
+    value.emplace_back(tuple.GetValue(schema, i));
+  }
+}
+
+/**
+ * Only used in update/delete!!!
+ * Compare two tuple, return tuple before modification
+ * */
+auto GetTupleModifyFields(const Schema *schema, const Tuple *before, const Tuple *after,
+                          std::vector<bool> * modified_mask) -> std::pair<Tuple, std::vector<bool>>{
+  BUSTUB_ASSERT(before!= nullptr, "empty before tuple");
+  if(after == nullptr){
+    return std::pair<Tuple, std::vector<bool>>
+        {*before, std::vector<bool>(schema->GetColumnCount(), true)};
+  }
+
+  std::vector<Value> before_value;
+  std::vector<Value> after_value;
+  GetTupleValueVector(schema, *before, before_value);
+  GetTupleValueVector(schema, *after, after_value);
+
+  std::vector<bool> modify_fields;
+  std::vector<Value> modify_value;
+  std::vector<uint32_t> modify_idx;
+
+  for (size_t i=0; i < before_value.size(); ++i){
+    auto mask = (modified_mask!= nullptr) && (*modified_mask)[i];
+    if(!before_value[i].CompareExactlyEquals(after_value[i]) || mask){
+      modify_idx.emplace_back(i);
+      modify_value.emplace_back(before_value[i]);
+      modify_fields.emplace_back(true);
+      continue ;
+    }
+    modify_fields.emplace_back(false);
+  }
+
+  Schema modify_schema = Schema::CopySchema(schema, modify_idx);
+  Tuple modify_tuple = {modify_value, &modify_schema};
+
+  return std::pair<Tuple, std::vector<bool>>{modify_tuple, modify_fields};
+}
+
 auto ModifyTupleToString(const Schema *schema, const UndoLog &undo_log ){
   uint32_t i = 0;
   uint32_t modify_field = 0;
