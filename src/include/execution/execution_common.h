@@ -26,7 +26,7 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
 
 
 auto GetReconstructUndoLogs(TransactionManager * transaction_manager,
-                            timestamp_t current_ts, RID rid) -> std::vector<UndoLog>;
+                            timestamp_t current_ts, RID rid, std::vector<UndoLog> &undo_logs) -> bool;
 // Add new functions as needed... You are likely need to define some more functions.
 //
 // To give you a sense of what can be shared across executors / transaction manager, here are the

@@ -39,11 +39,13 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     if( tp_meta.ts_ != txn_id_readable + TXN_START_ID
         && tp_meta.ts_ > read_ts ){
 
+      std::vector<UndoLog> undo_logs;
       // Get all undo logs;
-      auto undo_logs =
-          GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(),
-                                 read_ts,
-                                 tp.GetRid());
+      bool do_rebuild = GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(),
+                             read_ts,
+                             tp.GetRid(),
+                             undo_logs);
+
       // Reconstruct tuple
       auto reconstruct_tp =
           ReconstructTuple(&plan_->OutputSchema(),
@@ -54,7 +56,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         tp = reconstruct_tp.value();
       }
 
-      is_deleted = !reconstruct_tp.has_value();
+      is_deleted = !reconstruct_tp.has_value() || !do_rebuild;
     }
 
     if(!is_deleted) {

@@ -82,18 +82,17 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
 }
 
 auto GetReconstructUndoLogs(TransactionManager * transaction_manager,
-                            timestamp_t current_ts, RID rid) -> std::vector<UndoLog> {
-  std::vector<UndoLog> undo_logs{};
+                            timestamp_t current_ts, RID rid, std::vector<UndoLog> &undo_logs) -> bool{
   auto undo_link = transaction_manager->GetUndoLink(rid);
   while(undo_link.has_value() && undo_link->IsValid()){
     auto undo_log = transaction_manager->GetUndoLog(undo_link.value());
     undo_logs.emplace_back(undo_log);
     if(undo_log.ts_ <= current_ts){
-      break ;
+      return true;
     }
     undo_link = undo_log.prev_version_;
   }
-  return undo_logs;
+  return false;
 }
 
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
