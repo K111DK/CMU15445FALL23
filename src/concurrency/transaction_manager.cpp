@@ -139,7 +139,7 @@ void TransactionManager::GarbageCollection() {
         }
       }
     }
-    if(need_gc && txn->GetTransactionState() != TransactionState::RUNNING){
+    if(need_gc && txn->GetTransactionState() == TransactionState::COMMITTED){
       iter = txn_map_.erase(iter);
     }else{
       iter++;
