@@ -65,9 +65,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // If this tuple haven't been modified by this txn yet, append undo log, update link
     if (!is_same_transaction) {
       auto [modified_tp, modified_fields] =
-          GetTupleModifyFields(&child_executor_->GetOutputSchema(),
-                               &child_tuple,
-                               &insert_tuple);
+          GetTupleModifyFields(&child_executor_->GetOutputSchema(), &child_tuple, &insert_tuple);
       auto first_undo_version = txn_manager->GetUndoLink(*rid);
       UndoLog undo_log;
       undo_log.is_deleted_ = meta.is_deleted_;
@@ -80,7 +78,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       txn->AppendWriteSet(table_info->oid_, *rid);
     } else {
       auto first_undo_version = txn_manager->GetUndoLink(*rid);
-      if(first_undo_version.has_value() && first_undo_version.value().IsValid()){
+      if (first_undo_version.has_value() && first_undo_version.value().IsValid()) {
         UndoLog old_undo_log = txn_manager->GetUndoLog(first_undo_version.value());
         std::vector<UndoLog> undo_logs;
         GetReconstructUndoLogs(txn_manager, txn->GetReadTs(), *rid, undo_logs);
