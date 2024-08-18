@@ -12,10 +12,10 @@
 
 #include <memory>
 
-#include "execution/executors/delete_executor.h"
 #include "concurrency/transaction.h"
 #include "concurrency/transaction_manager.h"
 #include "execution/execution_common.h"
+#include "execution/executors/delete_executor.h"
 
 namespace bustub {
 
@@ -28,7 +28,6 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
 void DeleteExecutor::Init() { child_executor_->Init(); }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-
   Tuple child_tuple{};
   // Get the next tuple
   while (!delete_done_) {
@@ -48,29 +47,29 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto [meta, tp] = table_info->table_->GetTuple(*rid);
     bool is_same_transaction = meta.ts_ == modify_ts;
 
-    //Abort if a larger ts modify is committed or Any other transaction is modifying
+    // Abort if a larger ts modify is committed or Any other transaction is modifying
     bool do_abort = meta.ts_ > read_ts && !is_same_transaction;
-    if(do_abort){
+    if (do_abort) {
       txn->SetTainted();
       throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
     }
 
-    //If this tuple haven't been modified by this txn yet, append undo log, update link
-    if(!is_same_transaction) {
-      auto [modified_tp, modified_fields] = GetTupleModifyFields(&child_executor_->GetOutputSchema(),&tp,nullptr);
+    // If this tuple haven't been modified by this txn yet, append undo log, update link
+    if (!is_same_transaction) {
+      auto [modified_tp, modified_fields] = GetTupleModifyFields(&child_executor_->GetOutputSchema(), &tp, nullptr);
       auto first_undo_version = txn_manager->GetUndoLink(*rid);
       UndoLog undo_log;
       undo_log.is_deleted_ = meta.is_deleted_;
       undo_log.ts_ = meta.ts_;
       undo_log.modified_fields_ = modified_fields;
       undo_log.tuple_ = modified_tp;
-      undo_log.prev_version_ = first_undo_version.has_value() ? first_undo_version.value(): UndoLink();
+      undo_log.prev_version_ = first_undo_version.has_value() ? first_undo_version.value() : UndoLink();
       auto new_first_undo_version = txn->AppendUndoLog(undo_log);
       txn_manager->UpdateUndoLink(*rid, new_first_undo_version);
       txn->AppendWriteSet(table_info->oid_, *rid);
     }
 
-    //do modify job
+    // do modify job
     meta.ts_ = modify_ts;
     meta.is_deleted_ = true;
     table_info->table_->UpdateTupleMeta(meta, *rid);

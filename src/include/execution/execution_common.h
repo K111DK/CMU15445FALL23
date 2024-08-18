@@ -6,11 +6,10 @@
 #include "catalog/catalog.h"
 #include "catalog/schema.h"
 #include "concurrency/transaction.h"
-#include "storage/table/tuple.h"
 #include "concurrency/transaction_manager.h"
+#include "storage/table/tuple.h"
 
 namespace bustub {
-
 
 /**
  *  Reconstruct Tuple by Undo logs
@@ -25,14 +24,13 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
                TableHeap *table_heap);
 
-
-auto GetReconstructUndoLogs(TransactionManager * transaction_manager,
-                            timestamp_t current_ts, RID rid, std::vector<UndoLog> &undo_logs) -> bool;
+auto GetReconstructUndoLogs(TransactionManager *transaction_manager, timestamp_t current_ts, RID rid,
+                            std::vector<UndoLog> &undo_logs) -> bool;
 
 auto GetTupleValueVector(const Schema *schema, const Tuple &tuple, std::vector<Value> &value);
 
 auto GetTupleModifyFields(const Schema *schema, const Tuple *before, const Tuple *after,
-                          std::vector<bool> * modified_mask = nullptr) -> std::pair<Tuple, std::vector<bool>>;
+                          std::vector<bool> *modified_mask = nullptr) -> std::pair<Tuple, std::vector<bool>>;
 // Add new functions as needed... You are likely need to define some more functions.
 //
 // To give you a sense of what can be shared across executors / transaction manager, here are the

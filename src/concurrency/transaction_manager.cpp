@@ -52,7 +52,7 @@ auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { return true; }
 
 auto TransactionManager::Commit(Transaction *txn) -> bool {
   std::unique_lock<std::mutex> commit_lck(commit_mutex_);
-  if(txn->GetTransactionId() == INVALID_TXN_ID){
+  if (txn->GetTransactionId() == INVALID_TXN_ID) {
     return true;
   }
   // TODO(fall2023): acquire commit ts!
@@ -77,10 +77,11 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
   // TODO(fall2023): set commit timestamp + update last committed timestamp here.
   txn->commit_ts_.store(commit_ts);
   auto write_sets = txn->GetWriteSets();
-  for(auto [table_oid, rid_sets]:write_sets){
+  for (auto [table_oid, rid_sets] : write_sets) {
     auto table_info = catalog_->GetTable(table_oid);
-    for(auto rid:rid_sets) {
+    for (auto rid : rid_sets) {
       auto [meta, tuple] = table_info->table_->GetTuple(rid);
+      BUSTUB_ASSERT(meta.ts_ == txn->GetTransactionTempTs(), "Try commit Txn whose modification is lost");
       meta.ts_ = commit_ts;
       table_info->table_->UpdateTupleMeta(meta, rid);
     }
@@ -109,39 +110,39 @@ void TransactionManager::Abort(Transaction *txn) {
 void TransactionManager::GarbageCollection() {
   auto watermark = GetWatermark();
   auto iter = txn_map_.begin();
-  for(;iter != txn_map_.end();){
+  for (; iter != txn_map_.end();) {
     auto txn = iter->second;
     bool need_gc = true;
-    for(auto [table_oid,rid_sets]: txn->GetWriteSets()){
-      if(!need_gc){
-        break ;
+    for (auto [table_oid, rid_sets] : txn->GetWriteSets()) {
+      if (!need_gc) {
+        break;
       }
-      for(auto rid:rid_sets){
+      for (auto rid : rid_sets) {
         auto link = GetUndoLink(rid);
         bool found = false;
         bool found_min_ts = false;
         auto [meta, tp] = catalog_->GetTable(table_oid)->table_->GetTuple(rid);
         found_min_ts = meta.ts_ <= watermark;
-        while(link.has_value() && link.value().IsValid() && !found_min_ts){
-          if(link.value().prev_txn_ == txn->GetTransactionId()){
+        while (link.has_value() && link.value().IsValid() && !found_min_ts) {
+          if (link.value().prev_txn_ == txn->GetTransactionId()) {
             found = true;
           }
           auto undo_log = GetUndoLog(link.value());
           found_min_ts = undo_log.ts_ <= watermark;
-          if(found_min_ts){
-            break ;
+          if (found_min_ts) {
+            break;
           }
           link = undo_log.prev_version_;
         }
-        if(found){
+        if (found) {
           need_gc = false;
-          break ;
+          break;
         }
       }
     }
-    if(need_gc && txn->GetTransactionState() == TransactionState::COMMITTED){
+    if (need_gc && txn->GetTransactionState() == TransactionState::COMMITTED) {
       iter = txn_map_.erase(iter);
-    }else{
+    } else {
       iter++;
     }
   }
