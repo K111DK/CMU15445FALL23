@@ -397,7 +397,7 @@ void ExecuteTxnTainted(BustubInstance &instance, const std::string &txn_var_name
 }
 
 void GarbageCollection(BustubInstance &instance) {
-  fmt::println(stderr, "- {}", Header("garbage_collection"));
+  fmt::println(stderr, "- {} - watermark:{}", Header("garbage_collection"), instance.txn_manager_->GetWatermark());
   instance.txn_manager_->GarbageCollection();
 }
 

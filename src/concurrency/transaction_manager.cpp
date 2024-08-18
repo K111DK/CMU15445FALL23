@@ -106,6 +106,45 @@ void TransactionManager::Abort(Transaction *txn) {
   running_txns_.RemoveTxn(txn->read_ts_);
 }
 
-void TransactionManager::GarbageCollection() { UNIMPLEMENTED("not implemented"); }
+void TransactionManager::GarbageCollection() {
+  auto watermark = GetWatermark();
+  auto iter = txn_map_.begin();
+  for(;iter != txn_map_.end();){
+    auto txn = iter->second;
+    bool need_gc = true;
+    for(auto [table_oid,rid_sets]: txn->GetWriteSets()){
+      if(!need_gc){
+        break ;
+      }
+      for(auto rid:rid_sets){
+        auto link = GetUndoLink(rid);
+        bool found = false;
+        bool found_min_ts = false;
+        auto [meta, tp] = catalog_->GetTable(table_oid)->table_->GetTuple(rid);
+        found_min_ts = meta.ts_ <= watermark;
+        while(link.has_value() && link.value().IsValid() && !found_min_ts){
+          if(link.value().prev_txn_ == txn->GetTransactionId()){
+            found = true;
+          }
+          auto undo_log = GetUndoLog(link.value());
+          found_min_ts = undo_log.ts_ <= watermark;
+          if(found_min_ts){
+            break ;
+          }
+          link = undo_log.prev_version_;
+        }
+        if(found){
+          need_gc = false;
+          break ;
+        }
+      }
+    }
+    if(need_gc && txn->GetTransactionState() != TransactionState::RUNNING){
+      iter = txn_map_.erase(iter);
+    }else{
+      iter++;
+    }
+  }
+}
 
 }  // namespace bustub

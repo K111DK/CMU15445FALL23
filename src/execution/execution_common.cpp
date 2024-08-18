@@ -17,8 +17,10 @@ auto GetTupleValueVector(const Schema *schema, const Tuple &tuple, std::vector<V
 }
 
 /**
+ *
  * Only used in update/delete!!!
  * Compare two tuple, return tuple before modification
+ *
  * */
 auto GetTupleModifyFields(const Schema *schema, const Tuple *before, const Tuple *after,
                           std::vector<bool> * modified_mask) -> std::pair<Tuple, std::vector<bool>>{
@@ -144,27 +146,27 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
                TableHeap *table_heap) {
   // always use stderr for printing logs...
   fmt::println(stderr, "debug_hook: {}", info);
-  for(auto [page_id, page_version_info]:txn_mgr->version_info_){
-    for(auto [slot_num ,link]:page_version_info->prev_version_){
-      RID rid(page_id, slot_num);
-      auto rid_current_ts = table_heap->GetTuple(rid).first.ts_ > TXN_START_ID ? table_heap->GetTuple(rid).first.ts_ - TXN_START_ID:
-                                                                               table_heap->GetTuple(rid).first.ts_;
-      fmt::println(stderr, "RID={}/{}  (ts={}{})  Tuple={}",
-                   page_id,slot_num,
-                   table_heap->GetTuple(rid).first.ts_ > TXN_START_ID ? "Txn@":"",rid_current_ts,
-                   table_heap->GetTuple(rid).first.is_deleted_?"<deleted>":table_heap->GetTuple(rid).second.ToString(&table_info->schema_));
-      auto undo_link = txn_mgr->GetUndoLink(rid);
-      while(undo_link.has_value() && undo_link->IsValid()){
-        auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
-        fmt::println(stderr, "         (ts={})  Txn@{}  Modify:{}"
-                     , undo_log.ts_
-                     , undo_link.value().prev_txn_ - TXN_START_ID
-                     , undo_log.is_deleted_?"<deleted>":ModifyTupleToString(&table_info->schema_, undo_log));
-        undo_link = undo_log.prev_version_;
-      }
-      fmt::println(stderr, "");
-    }
-  }
+//  for(auto [page_id, page_version_info]:txn_mgr->version_info_){
+//    for(auto [slot_num ,link]:page_version_info->prev_version_){
+//      RID rid(page_id, slot_num);
+//      auto rid_current_ts = table_heap->GetTuple(rid).first.ts_ > TXN_START_ID ? table_heap->GetTuple(rid).first.ts_ - TXN_START_ID:
+//                                                                               table_heap->GetTuple(rid).first.ts_;
+//      fmt::println(stderr, "RID={}/{}  (ts={}{})  Tuple={}",
+//                   page_id,slot_num,
+//                   table_heap->GetTuple(rid).first.ts_ > TXN_START_ID ? "Txn@":"",rid_current_ts,
+//                   table_heap->GetTuple(rid).first.is_deleted_?"<deleted>":table_heap->GetTuple(rid).second.ToString(&table_info->schema_));
+//      auto undo_link = txn_mgr->GetUndoLink(rid);
+//      while(undo_link.has_value() && undo_link->IsValid()){
+//        auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
+//        fmt::println(stderr, "         (ts={})  Txn@{}  Modify:{}"
+//                     , undo_log.ts_
+//                     , undo_link.value().prev_txn_ - TXN_START_ID
+//                     , undo_log.is_deleted_?"<deleted>":ModifyTupleToString(&table_info->schema_, undo_log));
+//        undo_link = undo_log.prev_version_;
+//      }
+//      fmt::println(stderr, "");
+//    }
+//  }
   // We recommend implementing this function as traversing the table heap and print the version chain. An example output
   // of our reference solution:
   //
