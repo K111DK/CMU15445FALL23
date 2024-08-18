@@ -39,6 +39,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
 
     auto txn = exec_ctx_->GetTransaction();
+    auto txn_manager = exec_ctx_->GetTransactionManager();
     auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(info_->name_);
     BUSTUB_ASSERT(index_info.size() == 1 && index_info[0]->is_primary_key_,
                   "In p4, always assume there's only one primary index");
@@ -58,12 +59,12 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
 
     //Do insert
-    auto insert_ts = exec_ctx_->GetTransaction()->GetTransactionTempTs();
+    auto insert_ts = txn->GetTransactionTempTs();
     TupleMeta meta = {insert_ts, false};
     RID insert_rid;
     const auto insert = info_->table_->InsertTuple(meta, *tuple,
                                                    exec_ctx_->GetLockManager(),
-                                                       exec_ctx_->GetTransaction(),
+                                                       txn,
                                                    plan_->GetTableOid());
 
     //In project 4, we always assume insert is successful
@@ -73,7 +74,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     //Try update primary index
     bool try_update_primary_index = primary_hash_table->InsertEntry(insert_tuple,
                                                                     insert_rid,
-                                                                    exec_ctx_->GetTransaction());
+                                                                    txn);
 
     //Fail! Other transaction already update index, mark insert tuple as deleted, then Abort
     if(!try_update_primary_index){
@@ -84,8 +85,8 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
 
     //Success! Append write set
-    exec_ctx_->GetTransaction()->AppendWriteSet(info_->oid_, insert_rid);
-    exec_ctx_->GetTransactionManager()->UpdateUndoLink(insert_rid, std::nullopt);
+    txn->AppendWriteSet(info_->oid_, insert_rid);
+    txn_manager->UpdateUndoLink(insert_rid, std::nullopt);
 
 
     total_insert_++;
