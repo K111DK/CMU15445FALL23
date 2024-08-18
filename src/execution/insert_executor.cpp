@@ -42,8 +42,27 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto txn = exec_ctx_->GetTransaction();
     auto txn_manager = exec_ctx_->GetTransactionManager();
     auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(info_->name_);
-    BUSTUB_ASSERT(index_info.size() == 1 && index_info[0]->is_primary_key_,
-                  "In p4, always assume there's only one primary index");
+    BUSTUB_ASSERT(index_info.size() <= 1, "In p4, always assume there's only one primary index");
+    if(index_info.empty()){
+      // Do insert
+      auto insert_ts = txn->GetTransactionTempTs();
+      TupleMeta meta = {insert_ts, false};
+      RID insert_rid;
+      const auto insert =
+          info_->table_->InsertTuple(meta, *tuple, exec_ctx_->GetLockManager(), txn, plan_->GetTableOid());
+
+      // In project 4, we always assume insert is successful
+      BUSTUB_ASSERT(insert.has_value(), "Insert fail!");
+      insert_rid = insert.value();
+
+      // Success! Append write set
+      txn->AppendWriteSet(info_->oid_, insert_rid);
+      txn_manager->UpdateUndoLink(insert_rid, std::nullopt);
+      total_insert_++;
+      continue ;
+    }
+
+
     const auto &primary_idx = index_info[0];
     auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx->index_.get());
     auto insert_tuple = tuple->KeyFromTuple(child_executor_->GetOutputSchema(), *primary_hash_table->GetKeySchema(),
