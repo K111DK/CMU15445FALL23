@@ -100,25 +100,26 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     meta.is_deleted_ = false;
     table_info->table_->UpdateTupleInPlace(meta, insert_tuple, *rid);
 
-    // delete old index
-    auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-    for (const auto &idx : index_info) {
-      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-      auto delete_key = child_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
-                                                 hash_table->GetKeyAttrs());
-      hash_table->DeleteEntry(delete_key, *rid, exec_ctx_->GetTransaction());
-    }
+    //We don't do any modified on (primary)index info
 
-    // Insert new index
-    for (const auto &idx : index_info) {
-      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-      auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
-                                                  hash_table->GetKeyAttrs());
-      bool success = hash_table->InsertEntry(insert_key, *rid, exec_ctx_->GetTransaction());
-      if (!success) {
-        BUSTUB_ASSERT(0, "Error: Index insert error");
-      }
-    }
+    // delete old index
+//    auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+//    for (const auto &idx : index_info) {
+//      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
+//      auto delete_key = child_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
+//                                                 hash_table->GetKeyAttrs());
+//      hash_table->DeleteEntry(delete_key, *rid, exec_ctx_->GetTransaction());
+//    }
+
+//    for (const auto &idx : index_info) {
+//      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
+//      auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
+//                                                  hash_table->GetKeyAttrs());
+//      bool success = hash_table->InsertEntry(insert_key, *rid, exec_ctx_->GetTransaction());
+//      if (!success) {
+//        BUSTUB_ASSERT(0, "Error: Index insert error");
+//      }
+//    }
 
     total_update_++;
   }
