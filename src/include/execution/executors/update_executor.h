@@ -58,6 +58,12 @@ class UpdateExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
 
  private:
+  auto CheckPrimaryKeyNeedUpdate(const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> bool;
+
+  auto PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t ;
+
+  auto NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t ;
+
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_{};
 
@@ -66,7 +72,6 @@ class UpdateExecutor : public AbstractExecutor {
 
   /** The child executor to obtain value from */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  std::atomic_int64_t total_update_ = 0;
   std::atomic_bool delete_done_ = false;
   bool primary_index_update_ = false;
 };
