@@ -81,15 +81,16 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       if (first_undo_version.has_value() && first_undo_version.value().IsValid()) {
         UndoLog old_undo_log = txn_manager->GetUndoLog(first_undo_version.value());
         std::vector<UndoLog> undo_logs;
-        GetReconstructUndoLogs(txn_manager, txn->GetReadTs(), *rid, undo_logs);
-        auto original_tp = ReconstructTuple(&child_executor_->GetOutputSchema(), tp, meta, undo_logs);
-        auto [modified_tp, modified_fields] = GetTupleModifyFields(
-            &child_executor_->GetOutputSchema(), &original_tp.value(), &insert_tuple, &old_undo_log.modified_fields_);
-
+        //GetReconstructUndoLogs(txn_manager, txn->GetReadTs(), *rid, undo_logs);
         UndoLog new_undo_log = old_undo_log;
+        auto original_tp = ReconstructTuple(&child_executor_->GetOutputSchema(), tp, meta, {old_undo_log});
+        if(original_tp.has_value()){
+          auto [modified_tp, modified_fields] = GetTupleModifyFields(
+              &child_executor_->GetOutputSchema(), &original_tp.value(), &insert_tuple, &old_undo_log.modified_fields_);
+          new_undo_log.modified_fields_ = modified_fields;
+          new_undo_log.tuple_ = modified_tp;
+        }
         // We only change modified tp
-        new_undo_log.modified_fields_ = modified_fields;
-        new_undo_log.tuple_ = modified_tp;
         txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
       }
       txn->AppendWriteSet(table_info->oid_, *rid);

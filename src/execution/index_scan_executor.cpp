@@ -71,35 +71,42 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 //    version_link->in_progress_ = true;
 //  }
 
-  //Get undo logs
-  bool got_valid_record =
-      GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(),
-                             txn->GetReadTs(),
-                             tp.GetRid(),
-                             undo_logs);
+  bool need_undo = meta.ts_ > txn->GetReadTs();
+  if( need_undo ){
 
-//  // Release version link lock
-//  {
-//    std::unique_lock<std::shared_mutex> lck(txn_manager->version_info_mutex_);
-//    auto version_link = txn_manager->GetVersionLink(result_tmp[0]);
-//    version_link->in_progress_ = false;
-//  }
+    std::optional<Tuple> reconstruct_tp{std::nullopt};
+    bool got_valid_record = false;
+    auto is_deleted = false;
 
-  // Reconstruct tuple
-  auto reconstruct_tp = ReconstructTuple(&plan_->OutputSchema(),
-                                         tp,
-                                         meta,
-                                         undo_logs);
+    //Get undo logs
+    got_valid_record =
+        GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(),
+                               txn->GetReadTs(),
+                               tp.GetRid(),
+                               undo_logs);
+    // Reconstruct tuple
+    reconstruct_tp = ReconstructTuple(&plan_->OutputSchema(),
+                                           tp,
+                                           meta,
+                                           undo_logs);
 
-  if (reconstruct_tp.has_value()) {
-    tp = reconstruct_tp.value();
+    if (reconstruct_tp.has_value()) {
+      tp = reconstruct_tp.value();
+    }
+
+    if( !reconstruct_tp.has_value() || !got_valid_record ){
+      is_deleted = true;
+    }
+    *tuple = tp;
+    *rid = result_tmp[0];
+    done_ = true;
+    return !is_deleted;
   }
 
-  auto is_deleted = !reconstruct_tp.has_value() || !got_valid_record;
   *tuple = tp;
   *rid = result_tmp[0];
   done_ = true;
-  return !is_deleted;
+  return !meta.is_deleted_;
 }
 
 }  // namespace bustub
