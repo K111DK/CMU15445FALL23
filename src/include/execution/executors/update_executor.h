@@ -68,5 +68,6 @@ class UpdateExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::atomic_int64_t total_update_ = 0;
   std::atomic_bool delete_done_ = false;
+  bool primary_index_update_ = false;
 };
 }  // namespace bustub

@@ -44,12 +44,12 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   }
 
   auto txn = exec_ctx_->GetTransaction();
-  //auto txn_manager = exec_ctx_->GetTransactionManager();
+  // auto txn_manager = exec_ctx_->GetTransactionManager();
   auto [meta, tp] = info_->table_->GetTuple(result_tmp[0]);
   auto self_modified = meta.ts_ == txn->GetTransactionTempTs();
 
-  //Tuple modified by txn itself, and no deleted
-  if(self_modified){
+  // Tuple modified by txn itself, and no deleted
+  if (self_modified) {
     *tuple = tp;
     *rid = result_tmp[0];
     done_ = true;
@@ -59,42 +59,35 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   // Get all undo logs;
   std::vector<UndoLog> undo_logs;
 
-//  //Get version link lock
-//  {
-//    std::unique_lock<std::shared_mutex> lck(txn_manager->version_info_mutex_);
-//    auto version_link = txn_manager->GetVersionLink(result_tmp[0]);
-//    BUSTUB_ASSERT(version_link.has_value(), "Empty version link");
-//    if (version_link->in_progress_) {
-//      txn->SetTainted();
-//      throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
-//    }
-//    version_link->in_progress_ = true;
-//  }
+  //  //Get version link lock
+  //  {
+  //    std::unique_lock<std::shared_mutex> lck(txn_manager->version_info_mutex_);
+  //    auto version_link = txn_manager->GetVersionLink(result_tmp[0]);
+  //    BUSTUB_ASSERT(version_link.has_value(), "Empty version link");
+  //    if (version_link->in_progress_) {
+  //      txn->SetTainted();
+  //      throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
+  //    }
+  //    version_link->in_progress_ = true;
+  //  }
 
   bool need_undo = meta.ts_ > txn->GetReadTs();
-  if( need_undo ){
-
+  if (need_undo) {
     std::optional<Tuple> reconstruct_tp{std::nullopt};
     bool got_valid_record = false;
     auto is_deleted = false;
 
-    //Get undo logs
+    // Get undo logs
     got_valid_record =
-        GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(),
-                               txn->GetReadTs(),
-                               tp.GetRid(),
-                               undo_logs);
+        GetReconstructUndoLogs(exec_ctx_->GetTransactionManager(), txn->GetReadTs(), tp.GetRid(), undo_logs);
     // Reconstruct tuple
-    reconstruct_tp = ReconstructTuple(&plan_->OutputSchema(),
-                                           tp,
-                                           meta,
-                                           undo_logs);
+    reconstruct_tp = ReconstructTuple(&plan_->OutputSchema(), tp, meta, undo_logs);
 
     if (reconstruct_tp.has_value()) {
       tp = reconstruct_tp.value();
     }
 
-    if( !reconstruct_tp.has_value() || !got_valid_record ){
+    if (!reconstruct_tp.has_value() || !got_valid_record) {
       is_deleted = true;
     }
     *tuple = tp;

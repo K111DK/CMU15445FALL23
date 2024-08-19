@@ -236,7 +236,7 @@ TEST(GradingTxnIndexTest, IndexUpdateConflictTest) {  // NOLINT
   // hidden tests...
 }
 
-TEST(TxnIndexTest, DISABLED_UpdatePrimaryKeyTest) {  // NOLINT
+TEST(TxnIndexTest, UpdatePrimaryKeyTest) {  // NOLINT
   const std::string query = "SELECT * FROM maintable";
 
   auto bustub = std::make_unique<BustubInstance>();
@@ -246,6 +246,7 @@ TEST(TxnIndexTest, DISABLED_UpdatePrimaryKeyTest) {  // NOLINT
   auto txn1 = BeginTxn(*bustub, "txn1");
   WithTxn(txn1, ExecuteTxn(*bustub, _var, _txn, "INSERT INTO maintable VALUES (1, 0), (2, 0), (3, 0), (4, 0)"));
   WithTxn(txn1, QueryShowResult(*bustub, _var, _txn, query, IntResult{{1, 0}, {2, 0}, {3, 0}, {4, 0}}));
+
   WithTxn(txn1, QueryIndex(*bustub, _var, _txn, query, "col1", std::vector<int>{1, 2, 3, 4},
                            IntResult{{1, 0}, {2, 0}, {3, 0}, {4, 0}}));
   WithTxn(txn1, CommitTxn(*bustub, _var, _txn));

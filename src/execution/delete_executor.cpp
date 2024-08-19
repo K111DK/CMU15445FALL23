@@ -74,14 +74,14 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     meta.is_deleted_ = true;
     table_info->table_->UpdateTupleMeta(meta, *rid);
 
-//    We don't do any modified on (primary)index info
-//    auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(info_->name_);
-//    for (const auto &idx : index_info) {
-//      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
-//      auto delete_key = child_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
-//                                                 hash_table->GetKeyAttrs());
-//      hash_table->DeleteEntry(delete_key, *rid, exec_ctx_->GetTransaction());
-//    }
+    //    We don't do any modified on (primary)index info
+    //    auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(info_->name_);
+    //    for (const auto &idx : index_info) {
+    //      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
+    //      auto delete_key = child_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *hash_table->GetKeySchema(),
+    //                                                 hash_table->GetKeyAttrs());
+    //      hash_table->DeleteEntry(delete_key, *rid, exec_ctx_->GetTransaction());
+    //    }
 
     total_delete_++;
   }
