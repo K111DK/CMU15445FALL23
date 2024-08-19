@@ -42,9 +42,18 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     return false;
   }
 
-  auto tp = info_->table_->GetTuple(result_tmp[0]);
-  if (!tp.first.is_deleted_) {
-    *tuple = tp.second;
+  auto txn = exec_ctx_->GetTransaction();
+  auto [meta, tp] = info_->table_->GetTuple(result_tmp[0]);
+  auto future_tuple = meta.ts_ > txn->GetReadTs();
+  auto self_modified = meta.ts_ == txn->GetTransactionTempTs();
+
+  if(future_tuple && !self_modified){
+    done_ = true;
+    return false;
+  }
+
+  if (!meta.is_deleted_) {
+    *tuple = tp;
     *rid = result_tmp[0];
     done_ = true;
     return true;
@@ -54,7 +63,4 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   return false;
 }
 
-}  // namespace bustub
-   // create table t1(v1 int, v2 int, v3 int);
-   // create index t1v1 on t1(v1);
-   // insert into t1 values (1, 115, 114514);
+}
