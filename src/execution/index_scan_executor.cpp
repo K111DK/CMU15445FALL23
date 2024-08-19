@@ -102,4 +102,4 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   return !is_deleted;
 }
 
-}
+}  // namespace bustub

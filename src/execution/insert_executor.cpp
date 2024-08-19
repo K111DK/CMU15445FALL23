@@ -89,17 +89,17 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       }
 
 
-      //Get version link lock
-      {
-        std::unique_lock<std::shared_mutex> lck(txn_manager->version_info_mutex_);
-        auto version_link = txn_manager->GetVersionLink(insert_rid);
-        BUSTUB_ASSERT(version_link.has_value(), "Empty version link");
-        if (version_link->in_progress_) {
-          txn->SetTainted();
-          throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
-        }
-        version_link->in_progress_ = true;
-      }
+//      //Get version link lock
+//      {
+//        std::unique_lock<std::shared_mutex> lck(txn_manager->version_info_mutex_);
+//        auto version_link = txn_manager->GetVersionLink(insert_rid);
+//        BUSTUB_ASSERT(version_link.has_value(), "Empty version link");
+//        if (version_link->in_progress_) {
+//          txn->SetTainted();
+//          throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
+//        }
+//        version_link->in_progress_ = true;
+//      }
 
       bool is_same_transaction = meta.ts_ == txn->GetTransactionTempTs();
       //At most one transaction can reach here
@@ -145,12 +145,12 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
                                                         table_write_page_guard.AsMut<TablePage>());
       table_write_page_guard.Drop();
 
-      // Release version link lock
-      {
-        std::unique_lock<std::shared_mutex> lck(txn_manager->version_info_mutex_);
-        auto version_link = txn_manager->GetVersionLink(insert_rid);
-        version_link->in_progress_ = false;
-      }
+//      // Release version link lock
+//      {
+//        std::unique_lock<std::shared_mutex> lck(txn_manager->version_info_mutex_);
+//        auto version_link = txn_manager->GetVersionLink(insert_rid);
+//        version_link->in_progress_ = false;
+//      }
 
     }else {
       // Do insert

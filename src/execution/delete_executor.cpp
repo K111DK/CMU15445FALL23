@@ -74,7 +74,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     meta.is_deleted_ = true;
     table_info->table_->UpdateTupleMeta(meta, *rid);
 
-    //We don't do any modified on (primary)index info
+//    We don't do any modified on (primary)index info
 //    auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(info_->name_);
 //    for (const auto &idx : index_info) {
 //      auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(idx->index_.get());
