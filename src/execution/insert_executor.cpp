@@ -54,6 +54,9 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 }
 auto InsertExecutor::CheckPrimaryKeyConflict(Tuple & tuple) -> std::optional<RID>{
   auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+  if(index_info.empty()){
+    return std::nullopt;
+  }
   const auto &primary_idx = index_info[0];
   auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx->index_.get());
   auto insert_key = tuple.KeyFromTuple(
