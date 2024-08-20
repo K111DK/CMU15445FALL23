@@ -53,12 +53,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   return true;
 }
 auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t {
-  auto txn = exec_ctx_->GetTransaction();
-  auto txn_manager = exec_ctx_->GetTransactionManager();
   auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-  auto modify_ts = txn->GetTransactionTempTs();
-  auto read_ts = txn->GetReadTs();
-  auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   int64_t total_update = 0;
 
   // Delete all update tuple
@@ -141,24 +136,33 @@ auto UpdateExecutor::CheckPrimaryKeyConflict(Tuple & tuple) -> std::optional<RID
 auto UpdateExecutor::AtomicInsertNewTuple(Tuple &insert_tuple) -> void {
   auto txn = exec_ctx_->GetTransaction();
   auto insert_ts = txn->GetTransactionTempTs();
-  TupleMeta meta = {insert_ts, false};
   const auto insert =
-      table_info_->table_->InsertTuple(meta, insert_tuple, exec_ctx_->GetLockManager(), txn, plan_->GetTableOid());
+      table_info_->table_->InsertTuple({insert_ts, false},
+                                       insert_tuple,
+                                       exec_ctx_->GetLockManager(),
+                                       txn,
+                                       plan_->GetTableOid());
   // In project 4, we always assume insert is successful
   BUSTUB_ASSERT(insert.has_value(), "Insert fail!");
   RID insert_rid = insert.value();
   const auto &primary_idx = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-  auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx[0]->index_.get());
-  auto insert_key = insert_tuple.KeyFromTuple(
-      child_executor_->GetOutputSchema(),
-      *primary_hash_table->GetKeySchema(),
-      primary_hash_table->GetKeyAttrs());
-  // Try update primary index
-  bool try_update_primary_index = primary_hash_table->InsertEntry(insert_key, insert_rid, txn);
-  // Fail! Other transaction already update index, mark insert tuple as deleted, then Abort
-  if (!try_update_primary_index) {
-    txn->SetTainted();
-    throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
+  if(!primary_idx.empty()){
+
+    BUSTUB_ASSERT(primary_idx.size() == 1, "We only support one index for each table");
+    auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx[0]->index_.get());
+    auto insert_key = insert_tuple.KeyFromTuple(
+         child_executor_->GetOutputSchema(),
+         *primary_hash_table->GetKeySchema(),
+         primary_hash_table->GetKeyAttrs());
+
+    // Try update primary index
+    bool try_update_primary_index = primary_hash_table->InsertEntry(insert_key, insert_rid, txn);
+
+    // Fail! Other transaction already update index, mark insert tuple as deleted, then Abort
+    if (!try_update_primary_index) {
+       txn->SetTainted();
+       throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
+    }
   }
   // Success! Append write set
   txn->AppendWriteSet(table_info_->oid_, insert_rid);
