@@ -76,7 +76,7 @@ auto DeleteExecutor::AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void 
     auto [modified_tp, modified_fields] =
         GetTupleModifyFields(&child_executor_->GetOutputSchema(),
                              &current_tuple,
-                             &update_tuple);
+                             nullptr);
     UndoLog undo_log;
     undo_log.is_deleted_ = current_meta.is_deleted_;
     undo_log.ts_ = current_meta.ts_;
