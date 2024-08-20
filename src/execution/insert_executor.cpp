@@ -90,6 +90,11 @@ auto InsertExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &updat
   if (do_abort) {
     FakeAbort(txn);
   }
+
+  if(!current_meta.is_deleted_){
+    FakeAbort(txn);
+  }
+
   auto first_undo_version = txn_manager->GetUndoLink(rid);
 
   // If this tuple haven't been modified by this txn yet, append undo log, update link
