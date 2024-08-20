@@ -69,7 +69,7 @@ class UpdateExecutor : public AbstractExecutor {
   auto AtomicInsertNewTuple(Tuple &insert_tuple) -> void;
 
   auto CheckPrimaryKeyConflict(Tuple &tuple) -> std::optional<RID>;
-
+  auto CheckUncommittedTransactionValid() -> void;
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_{};
 

@@ -47,7 +47,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   }else{
     total_update = NormalUpdate(tuples_to_update);
   }
-
+  CheckUncommittedTransactionValid();
   *tuple = Tuple({{INTEGER, total_update}}, &GetOutputSchema());
   delete_done_ = true;
   return true;
@@ -237,7 +237,17 @@ auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &updat
                                           update_tuple,rid);
   txn->AppendWriteSet(table_info_->oid_, rid);
 }
-
+auto UpdateExecutor::CheckUncommittedTransactionValid()->void {
+  auto write_set = exec_ctx_->GetTransaction()->GetWriteSets();
+  for(auto [table_oid,rids]:write_set){
+    for(auto rid:rids){
+      auto [meta, tp] = table_info_->table_->GetTuple(rid);
+      if(meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs()){
+        throw ExecutionException("Update: Uncommitted txn is modified by other txn");
+      }
+    }
+  }
+}
 }  // namespace bustub
 //
 // create table t1(v1 int, v2 int);

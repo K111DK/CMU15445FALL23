@@ -56,7 +56,7 @@ class InsertExecutor : public AbstractExecutor {
   auto AtomicInsertNewTuple(Tuple &insert_tuple) -> void;
   auto CheckPrimaryKeyConflict(Tuple & tuple) -> std::optional<RID>;
   auto AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &update_tuple) -> void;
-
+  auto CheckUncommittedTransactionValid() -> void;
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;

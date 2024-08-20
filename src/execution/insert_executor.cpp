@@ -46,7 +46,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       // Do insert
       AtomicInsertNewTuple(insert_tuple);
     }
-
+    CheckUncommittedTransactionValid();
     total_insert_++;
   }
 
@@ -173,5 +173,16 @@ auto InsertExecutor::AtomicInsertNewTuple(Tuple &insert_tuple) -> void {
   }
   // Success! Append write set
   txn->AppendWriteSet(table_info_->oid_, insert_rid);
+}
+auto InsertExecutor::CheckUncommittedTransactionValid() -> void {
+  auto write_set = exec_ctx_->GetTransaction()->GetWriteSets();
+  for(auto [table_oid,rids]:write_set){
+    for(auto rid:rids){
+      auto [meta, tp] = table_info_->table_->GetTuple(rid);
+      if(meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs()){
+        throw ExecutionException("Insert: Uncommitted txn is modified by other txn");
+      }
+    }
+  }
 }
 }  // namespace bustub
