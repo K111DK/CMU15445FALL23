@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "concurrency/transaction_manager.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/update_plan.h"
@@ -60,13 +61,15 @@ class UpdateExecutor : public AbstractExecutor {
  private:
   auto CheckPrimaryKeyNeedUpdate(const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> bool;
 
-  auto PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t ;
+  auto PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t;
 
-  auto NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t ;
+  auto NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t;
 
   auto AtomicModifiedTuple(RID rid, bool do_deleted, Tuple &update_tuple) -> void;
 
-  auto CheckPrimaryKeyConflict(Tuple & tuple) -> std::optional<RID>;
+  auto CheckPrimaryKeyConflict(Tuple &tuple) -> std::optional<RID>;
+
+  static auto VersionLinkInProgress(std::optional<VersionUndoLink> version_link) -> bool;
 
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_{};
@@ -78,5 +81,6 @@ class UpdateExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::atomic_bool delete_done_ = false;
   bool primary_index_update_ = false;
+  std::function<bool(std::optional<VersionUndoLink>)> *version_in_progress_;
 };
 }  // namespace bustub

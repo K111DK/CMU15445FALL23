@@ -9,6 +9,10 @@
 #include "type/value_factory.h"
 
 namespace bustub {
+auto FakeAbort(Transaction *txn) -> void {
+  txn->SetTainted();
+  throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
+}
 
 auto GetTupleValueVector(const Schema *schema, const Tuple &tuple, std::vector<Value> &value) {
   for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
@@ -16,6 +20,14 @@ auto GetTupleValueVector(const Schema *schema, const Tuple &tuple, std::vector<V
   }
 }
 
+auto EvaluateTuple(const Schema &eval_schema, const Schema &out_schema, const Tuple &tuple, const std::vector<std::shared_ptr<AbstractExpression>> &expressions) -> Tuple{
+  std::vector<Value> values{};
+  values.reserve(out_schema.GetColumnCount());
+  for (const auto &expr : expressions) {
+    values.push_back(expr->Evaluate(&tuple, eval_schema));
+  }
+  return {values, &out_schema};
+}
 /**
  *
  * Only used in update/delete!!!

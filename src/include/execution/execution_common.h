@@ -31,6 +31,10 @@ auto GetTupleValueVector(const Schema *schema, const Tuple &tuple, std::vector<V
 
 auto GetTupleModifyFields(const Schema *schema, const Tuple *before, const Tuple *after,
                           std::vector<bool> *modified_mask = nullptr) -> std::pair<Tuple, std::vector<bool>>;
+
+auto EvaluateTuple(const Schema &eval_schema, const Schema &out_schema, const Tuple &tuple, const std::vector<std::shared_ptr<AbstractExpression>> &expressions) -> Tuple;
+
+auto FakeAbort(Transaction * txn) -> void;
 // Add new functions as needed... You are likely need to define some more functions.
 //
 // To give you a sense of what can be shared across executors / transaction manager, here are the

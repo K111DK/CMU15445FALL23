@@ -153,84 +153,69 @@ auto UpdateExecutor::NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_
   auto modify_ts = txn->GetTransactionIdHumanReadable() + TXN_START_ID;
   auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   int64_t total_update = 0;
-  for (auto &[child_tuple, child_rid] : tuples_to_update) {
-    // Compute update tuple
-    std::vector<Value> values{};
-    values.reserve(GetOutputSchema().GetColumnCount());
-    for (const auto &expr : plan_->target_expressions_) {
-      values.push_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
-    }
-    // Insert new tuple
-    Tuple update_tuple = Tuple{values, &plan_->OutputSchema()};
 
-    // Critical section begin
-    auto table_write_guard = table_info->table_->AcquireTablePageWriteLock(child_rid);
-    auto [old_meta, old_tuple] = table_info->table_->GetTupleWithLockAcquired(child_rid,
-                                                                              table_write_guard.As<TablePage>());
-    bool self_uncommitted_transaction = old_meta.ts_ == modify_ts;
-    bool can_not_see = old_meta.ts_ > read_ts;
+  for (auto &[snapshot_tuple, rid] : tuples_to_update) {
+    Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(),
+                                       child_executor_->GetOutputSchema(),snapshot_tuple,
+                                       plan_->target_expressions_);
+    auto current_version_link = txn_manager->GetVersionLink(rid);
+    BUSTUB_ASSERT(current_version_link.has_value(), "tuple don't exists");
+    VersionUndoLink modified_link = current_version_link.value();
+    modified_link.in_progress_ = true;
+    bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
+    if(!success){
+      FakeAbort(txn);
+    }
+    auto [current_meta, current_tuple] = table_info->table_->GetTuple(rid);
+    bool self_uncommitted_transaction = current_meta.ts_ == modify_ts;
+    bool can_not_see = current_meta.ts_ > read_ts;
 
     // Abort if a larger ts modify is committed or Any other transaction is modifying
     bool do_abort = can_not_see && !self_uncommitted_transaction;
     if (do_abort) {
-      txn->SetTainted();
-      table_write_guard.Drop();
-      throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
+      FakeAbort(txn);
     }
-    table_info->table_->UpdateTupleInPlaceWithLockAcquired({modify_ts,old_meta.is_deleted_},
-                                                           old_tuple,
-                                                           child_rid,
-                                                           table_write_guard.AsMut<TablePage>());
-    table_write_guard.Drop();
-    // Critical section end
-
+    auto first_undo_version = txn_manager->GetUndoLink(rid);
 
     // If this tuple haven't been modified by this txn yet, append undo log, update link
     if (!self_uncommitted_transaction) {
       auto [modified_tp, modified_fields] =
           GetTupleModifyFields(&child_executor_->GetOutputSchema(),
-                               &child_tuple,
+                               &current_tuple,
                                &update_tuple);
-      auto first_undo_version = txn_manager->GetUndoLink(child_rid);
       UndoLog undo_log;
-      undo_log.is_deleted_ = old_meta.is_deleted_;
-      undo_log.ts_ = old_meta.ts_;
+      undo_log.is_deleted_ = current_meta.is_deleted_;
+      undo_log.ts_ = current_meta.ts_;
       undo_log.modified_fields_ = modified_fields;
       undo_log.tuple_ = modified_tp;
       undo_log.prev_version_ = first_undo_version.has_value() ? first_undo_version.value() : UndoLink();
       auto new_first_undo_version = txn->AppendUndoLog(undo_log);
-      txn_manager->UpdateUndoLink(child_rid, new_first_undo_version);
-      txn->AppendWriteSet(table_info->oid_, child_rid);
+      //Atomically update link
+      txn_manager->UpdateUndoLink(rid, new_first_undo_version);
+      txn->AppendWriteSet(table_info->oid_, rid);
     } else {
-      auto first_undo_version = txn_manager->GetUndoLink(child_rid);
       if (first_undo_version.has_value() && first_undo_version.value().IsValid()) {
         UndoLog old_undo_log = txn_manager->GetUndoLog(first_undo_version.value());
-        std::vector<UndoLog> undo_logs;
         UndoLog new_undo_log = old_undo_log;
-        auto original_tp = ReconstructTuple(&child_executor_->GetOutputSchema(), old_tuple, old_meta, {old_undo_log});
-        if (original_tp.has_value()) {
+        auto before_modified = ReconstructTuple(&child_executor_->GetOutputSchema(),
+                                            current_tuple,
+                                            current_meta,
+                                            {old_undo_log});
+        if (before_modified.has_value()) {
           auto [modified_tp, modified_fields] = GetTupleModifyFields(
-              &child_executor_->GetOutputSchema(), &original_tp.value(), &update_tuple, &old_undo_log.modified_fields_);
+              &child_executor_->GetOutputSchema(), &before_modified.value(), &update_tuple, &old_undo_log.modified_fields_);
           new_undo_log.modified_fields_ = modified_fields;
           new_undo_log.tuple_ = modified_tp;
         }
-        // We only change modified tp
+        //Atomically update undo log
         txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
       }
-      txn->AppendWriteSet(table_info->oid_, child_rid);
+      txn->AppendWriteSet(table_info->oid_, rid);
     }
 
-
-
-    // do modify job
-    TupleMeta new_meta = {modify_ts, false};
-    table_write_guard = table_info->table_->AcquireTablePageWriteLock(child_rid);
-    table_info->table_->UpdateTupleInPlaceWithLockAcquired(new_meta,
-                                                           update_tuple,
-                                                           child_rid,
-                                                           table_write_guard.AsMut<TablePage>());
-    table_write_guard.Drop();
-
+    // do modify job (don't need lock since we're in snapshot read) only one transaction reach here
+    TupleMeta update_meta = {modify_ts, false};
+    table_info->table_->UpdateTupleInPlace(update_meta, update_tuple, rid);
     total_update++;
   }
   return total_update;
@@ -298,6 +283,12 @@ auto UpdateExecutor::CheckPrimaryKeyConflict(Tuple & tuple) -> std::optional<RID
   std::vector<RID> result{};
   primary_hash_table->ScanKey(insert_key, &result, exec_ctx_->GetTransaction());
   return result.empty() ? std::nullopt: std::make_optional<RID>(result[0]);
+}
+auto UpdateExecutor::VersionLinkInProgress(std::optional<VersionUndoLink> version_link) -> bool {
+  if(!version_link.has_value()){
+    return true;
+  }
+  return !version_link->in_progress_;
 }
 }  // namespace bustub
 //
