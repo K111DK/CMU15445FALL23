@@ -9,6 +9,13 @@
 #include "type/value_factory.h"
 
 namespace bustub {
+bool VersionLinkInProgress(std::optional<VersionUndoLink> version_link){
+  if(!version_link.has_value()){
+    return true;
+  }
+  return !version_link->in_progress_;
+}
+
 auto FakeAbort(Transaction *txn) -> void {
   txn->SetTainted();
   throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));

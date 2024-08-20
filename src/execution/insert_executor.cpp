@@ -49,7 +49,9 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       TupleMeta meta = {insert_ts, false};
       RID insert_rid;
       const auto insert =
-          info_->table_->InsertTuple(meta, insert_tuple, exec_ctx_->GetLockManager(), txn, plan_->GetTableOid());
+          info_->table_->InsertTuple(meta,
+                                     insert_tuple,
+                                     exec_ctx_->GetLockManager(), txn, plan_->GetTableOid());
 
       // In project 4, we always assume insert is successful
       BUSTUB_ASSERT(insert.has_value(), "Insert fail!");
