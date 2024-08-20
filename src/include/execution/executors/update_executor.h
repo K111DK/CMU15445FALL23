@@ -15,7 +15,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
-
+#include "execution/executors/delete_executor.h"
 #include "concurrency/transaction_manager.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"

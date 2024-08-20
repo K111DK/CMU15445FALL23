@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "execution/executor_context.h"
+#include "execution/executors/delete_executor.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/delete_plan.h"
 #include "storage/table/tuple.h"
@@ -54,14 +55,14 @@ class DeleteExecutor : public AbstractExecutor {
 
   /** @return The output schema for the delete */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
-
  private:
   /** The delete plan node to be executed */
   const DeletePlanNode *plan_;
+  auto AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void;
 
   /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  TableInfo *info_;
+  TableInfo *table_info_;
   std::atomic_int64_t total_delete_ = 0;
   std::atomic_bool delete_done_ = false;
 };

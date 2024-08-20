@@ -53,11 +53,12 @@ class InsertExecutor : public AbstractExecutor {
 
   /** @return The output schema for the insert */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
+  auto AtomicInsertNewTuple(Tuple &insert_tuple) -> void;
 
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
-  TableInfo *info_;
+  TableInfo *table_info_;
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::atomic_int64_t total_insert_ = 0;
   std::atomic_bool insert_done_ = false;
