@@ -64,7 +64,8 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
     const auto &primary_idx = index_info[0];
     auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx->index_.get());
-    auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *primary_hash_table->GetKeySchema(),
+    auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(),
+                                                *primary_hash_table->GetKeySchema(),
                                                 primary_hash_table->GetKeyAttrs());
 
     // First, check uniqueness of primary key

@@ -64,6 +64,10 @@ class UpdateExecutor : public AbstractExecutor {
 
   auto NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t ;
 
+  auto AtomicModifiedTuple(RID rid, bool do_deleted, Tuple &update_tuple) -> void;
+
+  auto CheckPrimaryKeyConflict(Tuple & tuple) -> std::optional<RID>;
+
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_{};
 
