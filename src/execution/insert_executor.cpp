@@ -167,6 +167,7 @@ auto InsertExecutor::AtomicInsertNewTuple(Tuple &insert_tuple) -> void {
 
     // Fail! Other transaction already update index
     if (!try_update_primary_index) {
+      table_info_->table_->UpdateTupleMeta({insert_ts,true}, insert.value());
       FakeAbort(txn);
     }
   }

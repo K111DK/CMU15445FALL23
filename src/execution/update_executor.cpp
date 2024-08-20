@@ -163,8 +163,8 @@ auto UpdateExecutor::AtomicInsertNewTuple(Tuple &insert_tuple) -> void {
 
     // Fail! Other transaction already update index, mark insert tuple as deleted, then Abort
     if (!try_update_primary_index) {
-       txn->SetTainted();
-       throw ExecutionException("Abort Txn@" + std::to_string(txn->GetTransactionIdHumanReadable()));
+      table_info_->table_->UpdateTupleMeta({insert_ts,true}, insert.value());
+      FakeAbort(txn);
     }
   }
   // Success! Append write set
