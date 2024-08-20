@@ -48,17 +48,21 @@ auto DeleteExecutor::AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void 
   auto txn = exec_ctx_->GetTransaction();
   auto txn_manager = exec_ctx_->GetTransactionManager();
   auto modify_ts = txn->GetTransactionTempTs();
-  auto current_version_link = txn_manager->GetVersionLink(rid);
-  VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
-  modified_link.in_progress_ = true;
-  bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
-  if(!success){
-    FakeAbort(txn);
-  }
+
   // Critical section begin
   auto [current_meta, current_tuple] = table_info_->table_->GetTuple(rid);
   bool self_uncommitted_transaction = current_meta.ts_ == txn->GetTransactionTempTs();
   bool can_not_see = current_meta.ts_ > txn->GetReadTs();
+
+  if(!self_uncommitted_transaction) {
+    auto current_version_link = txn_manager->GetVersionLink(rid);
+    VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
+    modified_link.in_progress_ = true;
+    bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
+    if (!success) {
+      FakeAbort(txn);
+    }
+  }
 
   // Abort if a larger ts modify is committed or Any other transaction is modifying
   bool do_abort = can_not_see && !self_uncommitted_transaction;
