@@ -303,8 +303,9 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
 
   // If this tuple haven't been modified by this txn yet, append undo log, update link
   if (!self_uncommitted_transaction) {
+    auto update_ptr = do_deleted ? nullptr: &update_tuple;
     auto [modified_tp, modified_fields] =
-        GetTupleModifyFields(&schema, &current_tuple, &update_tuple);
+        GetTupleModifyFields(&schema, &current_tuple, update_ptr);
     UndoLog undo_log;
     undo_log.is_deleted_ = current_meta.is_deleted_;
     undo_log.ts_ = current_meta.ts_;
