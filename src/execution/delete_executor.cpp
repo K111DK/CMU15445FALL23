@@ -39,6 +39,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       return true;
     }
     AtomicModifiedTuple(*rid, child_tuple);
+    CheckUncommittedTransactionValid();
     total_delete_++;
   }
 
@@ -109,5 +110,16 @@ auto DeleteExecutor::AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void 
   table_info_->table_->UpdateTupleInPlace({modify_ts, true},
                                           update_tuple,rid);
   txn->AppendWriteSet(table_info_->oid_, rid);
+}
+auto DeleteExecutor::CheckUncommittedTransactionValid() -> void {
+  auto write_set = exec_ctx_->GetTransaction()->GetWriteSets();
+  for(auto [table_oid,rids]:write_set){
+    for(auto rid:rids){
+      auto [meta, tp] = table_info_->table_->GetTuple(rid);
+      if(meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs()){
+        throw ExecutionException("Insert: Uncommitted txn is modified by other txn");
+      }
+    }
+  }
 }
 }  // namespace bustub

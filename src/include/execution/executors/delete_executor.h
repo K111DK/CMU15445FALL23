@@ -59,7 +59,7 @@ class DeleteExecutor : public AbstractExecutor {
   /** The delete plan node to be executed */
   const DeletePlanNode *plan_;
   auto AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void;
-
+  auto CheckUncommittedTransactionValid() -> void;
   /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
   TableInfo *table_info_;

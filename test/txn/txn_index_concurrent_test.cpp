@@ -197,7 +197,7 @@ TEST(TxnIndexTest, IndexConcurrentUpdateAbortTest) {  // NOLINT
     return fmt::format("UPDATE maintable SET b = b + {} WHERE a = {}", 1, n);
   };
   const int thread_cnt = 8;
-  const int number_cnt = 5;
+  const int number_cnt = 50;
   const auto generate_insert_sql = [](int n) -> std::string {
     std::vector<std::string> data;
     data.reserve(n);
