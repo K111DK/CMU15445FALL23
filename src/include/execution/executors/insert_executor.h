@@ -53,15 +53,12 @@ class InsertExecutor : public AbstractExecutor {
 
   /** @return The output schema for the insert */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
-  auto AtomicInsertNewTuple(Tuple &insert_tuple) -> void;
-  auto CheckPrimaryKeyConflict(Tuple &tuple) -> std::optional<RID>;
-  auto AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &update_tuple) -> void;
-  auto CheckUncommittedTransactionValid() -> void;
 
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
   TableInfo *table_info_;
+  std::vector<IndexInfo*> index_info_;
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::atomic_int64_t total_insert_ = 0;
   std::atomic_bool insert_done_ = false;

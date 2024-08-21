@@ -59,25 +59,18 @@ class UpdateExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
 
  private:
-  auto CheckPrimaryKeyNeedUpdate(const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> bool;
-
   auto PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t;
 
   auto NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t;
-
-  auto AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &update_tuple, bool check_slot_deleted) -> void;
-  auto AtomicInsertNewTuple(Tuple &insert_tuple) -> void;
-
-  auto CheckPrimaryKeyConflict(Tuple &tuple) -> std::optional<RID>;
-  auto CheckUncommittedTransactionValid() -> void;
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_{};
 
   /** Metadata identifying the table that should be updated */
-  const TableInfo *table_info_;
+  TableInfo *table_info_;
 
   /** The child executor to obtain value from */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  std::vector<IndexInfo *> index_info_;
   std::atomic_bool delete_done_ = false;
   bool primary_index_update_ = false;
 };
