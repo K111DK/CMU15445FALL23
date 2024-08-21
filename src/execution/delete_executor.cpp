@@ -45,7 +45,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
                         true,
                         child_tuple,
                         child_executor_->GetOutputSchema(),
-                        true);
+                        false);
     CheckUncommittedTransactionValid(table_info_, exec_ctx_->GetTransaction());
     total_delete_++;
   }
