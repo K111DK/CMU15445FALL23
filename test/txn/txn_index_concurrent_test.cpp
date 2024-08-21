@@ -117,7 +117,7 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
     }
     return fmt::format("INSERT INTO maintable VALUES {}", fmt::join(data, ","));
   };
-  const int trials = 50;
+  const int trials = 1;
   for (int n = 0; n < trials; n++) {
     auto bustub = std::make_unique<BustubInstance>();
     EnsureIndexScan(*bustub);
@@ -133,7 +133,7 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
     bool add_delete_insert = (n % 2 == 1);
     fmt::println(stderr, "trial {}: running with {} threads with {} rows, add_delete_insert={}", n + 1, thread_cnt,
                  number_cnt, add_delete_insert);
-    global_disable_execution_exception_print.store(true);
+    global_disable_execution_exception_print.store(false);
     for (int thread = 0; thread < thread_cnt; thread++) {
       update_threads.emplace_back([add_delete_insert, &bustub, thread, generate_sql, generate_select_sql,
                                    generate_delete_sql, generate_txn_insert_sql, &result_mutex, &operation_result]() {

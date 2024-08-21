@@ -279,16 +279,6 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
   bool self_uncommitted_transaction = current_meta.ts_ == txn->GetTransactionTempTs();
   bool can_not_see = current_meta.ts_ > txn->GetReadTs();
 
-  if (!self_uncommitted_transaction) {
-    auto current_version_link = txn_manager->GetVersionLink(rid);
-    VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
-    modified_link.in_progress_ = true;
-    bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
-    if (!success) {
-      FakeAbort(txn);
-    }
-  }
-
   // Abort if a larger ts modify is committed or Any other transaction is modifying
   bool do_abort = can_not_see && !self_uncommitted_transaction;
   if (do_abort) {
@@ -299,6 +289,19 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
     FakeAbort(txn);
   }
 
+  if (!self_uncommitted_transaction) {
+    auto current_version_link = txn_manager->GetVersionLink(rid);
+    VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
+    modified_link.in_progress_ = true;
+    bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
+    if (!success) {
+      FakeAbort(txn);
+    }
+  }
+
+  // do modify job (don't need lock since we're in snapshot read) only one transaction reach here
+  table_info->table_->UpdateTupleInPlace({modify_ts, do_deleted}, update_tuple, rid);
+  txn->AppendWriteSet(table_info->oid_, rid);
   auto first_undo_version = txn_manager->GetUndoLink(rid);
 
   // If this tuple haven't been modified by this txn yet, append undo log, update link
@@ -331,11 +334,12 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
       // Atomically update undo log
       txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
     }
+    auto current_version_link = txn_manager->GetVersionLink(rid);
+    VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
+    modified_link.in_progress_ = false;
+    txn_manager->UpdateVersionLink(rid, modified_link);
   }
 
-  // do modify job (don't need lock since we're in snapshot read) only one transaction reach here
-  table_info->table_->UpdateTupleInPlace({modify_ts, do_deleted}, update_tuple, rid);
-  txn->AppendWriteSet(table_info->oid_, rid);
 }
 auto CheckUncommittedTransactionValid(TableInfo * table_info, Transaction* txn) -> void {
   auto write_set = txn->GetWriteSets();
@@ -343,7 +347,7 @@ auto CheckUncommittedTransactionValid(TableInfo * table_info, Transaction* txn) 
     for (auto rid : rids) {
       auto [meta, tp] = table_info->table_->GetTuple(rid);
       if (meta.ts_ != txn->GetTransactionTempTs()) {
-        throw ExecutionException("Update: Uncommitted txn is modified by other txn");
+        throw ExecutionException("Uncommitted txn is modified by other txn");
       }
     }
   }
