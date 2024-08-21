@@ -58,7 +58,7 @@ auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples
 
   // Delete all update tuple
   for (auto &[snapshot_tuple, rid] : tuples_to_update) {
-    AtomicModifiedTuple(rid, true, snapshot_tuple);
+    AtomicModifiedTuple(rid, true, snapshot_tuple, false);
     total_update++;
   }
 
@@ -74,7 +74,7 @@ auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples
     // Violate primary key uniqueness;
     if (conflict_result.has_value()) {
       RID insert_rid = conflict_result.value();
-      AtomicModifiedTuple(insert_rid, false, update_tuple);
+      AtomicModifiedTuple(insert_rid, false, update_tuple, true);
     } else {
       // Do insert
       AtomicInsertNewTuple(update_tuple);
@@ -88,7 +88,7 @@ auto UpdateExecutor::NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_
     Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(),
                                        child_executor_->GetOutputSchema(),snapshot_tuple,
                                        plan_->target_expressions_);
-    AtomicModifiedTuple(rid, false, update_tuple);
+    AtomicModifiedTuple(rid, false, update_tuple, false);
     total_update++;
   }
   return total_update;
@@ -170,7 +170,7 @@ auto UpdateExecutor::AtomicInsertNewTuple(Tuple &insert_tuple) -> void {
   // Success! Append write set
   txn->AppendWriteSet(table_info_->oid_, insert_rid);
 }
-auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &update_tuple) -> void {
+auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &update_tuple, bool check_slot_deleted) -> void {
   auto txn = exec_ctx_->GetTransaction();
   auto txn_manager = exec_ctx_->GetTransactionManager();
   auto modify_ts = txn->GetTransactionTempTs();
@@ -195,7 +195,8 @@ auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &updat
   if (do_abort) {
     FakeAbort(txn);
   }
-  if(!current_meta.is_deleted_){
+
+  if(check_slot_deleted && !current_meta.is_deleted_){
     FakeAbort(txn);
   }
 
