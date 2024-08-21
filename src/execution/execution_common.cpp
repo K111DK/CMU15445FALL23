@@ -9,8 +9,8 @@
 #include "type/value_factory.h"
 
 namespace bustub {
-bool VersionLinkInProgress(std::optional<VersionUndoLink> version_link){
-  if(!version_link.has_value()){
+auto VersionLinkInProgress(std::optional<VersionUndoLink> version_link) -> bool {
+  if (!version_link.has_value()) {
     return true;
   }
   return !version_link->in_progress_;
@@ -27,7 +27,8 @@ auto GetTupleValueVector(const Schema *schema, const Tuple &tuple, std::vector<V
   }
 }
 
-auto EvaluateTuple(const Schema &eval_schema, const Schema &out_schema, const Tuple &tuple, const std::vector<std::shared_ptr<AbstractExpression>> &expressions) -> Tuple{
+auto EvaluateTuple(const Schema &eval_schema, const Schema &out_schema, const Tuple &tuple,
+                   const std::vector<std::shared_ptr<AbstractExpression>> &expressions) -> Tuple {
   std::vector<Value> values{};
   values.reserve(out_schema.GetColumnCount());
   for (const auto &expr : expressions) {

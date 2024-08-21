@@ -44,7 +44,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
   if (primary_index_update_) {
     total_update = PrimaryKeyUpdate(tuples_to_update);
-  }else{
+  } else {
     total_update = NormalUpdate(tuples_to_update);
   }
   CheckUncommittedTransactionValid();
@@ -64,10 +64,8 @@ auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples
 
   // Insert new tuple
   for (auto &[snapshot_tuple, rid] : tuples_to_update) {
-    Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(),
-                                       child_executor_->GetOutputSchema(),
-                                       snapshot_tuple,
-                                       plan_->target_expressions_);
+    Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(), child_executor_->GetOutputSchema(),
+                                       snapshot_tuple, plan_->target_expressions_);
 
     auto conflict_result = CheckPrimaryKeyConflict(update_tuple);
 
@@ -85,92 +83,83 @@ auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples
 auto UpdateExecutor::NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t {
   int64_t total_update = 0;
   for (auto &[snapshot_tuple, rid] : tuples_to_update) {
-    Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(),
-                                       child_executor_->GetOutputSchema(),snapshot_tuple,
-                                       plan_->target_expressions_);
+    Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(), child_executor_->GetOutputSchema(),
+                                       snapshot_tuple, plan_->target_expressions_);
     AtomicModifiedTuple(rid, false, update_tuple, false);
     total_update++;
   }
   return total_update;
 }
-auto UpdateExecutor::CheckPrimaryKeyNeedUpdate(const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> bool {
+auto UpdateExecutor::CheckPrimaryKeyNeedUpdate(const std::vector<std::shared_ptr<AbstractExpression>> &update_expr)
+    -> bool {
   auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
   if (index_info.empty()) {
     return false;
   }
   auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(index_info[0]->index_.get());
-  for (const auto &expr : update_expr) {
-    auto arith_expr = std::dynamic_pointer_cast<ArithmeticExpression>(expr);
-    if (arith_expr == nullptr) {
-      continue;
-    }
-    if (arith_expr->GetChildren().size() != 2) {
-      continue;
-    }
-    auto column_expr = std::dynamic_pointer_cast<ColumnValueExpression>(arith_expr->GetChildAt(0));
-    auto const_expr = std::dynamic_pointer_cast<ConstantValueExpression>(arith_expr->GetChildAt(1));
-    if (column_expr == nullptr || const_expr == nullptr) {
-      continue;
-    }
-    if (column_expr->GetColIdx() == hash_table->GetKeyAttrs()[0] && hash_table->GetMetadata()->IsPrimaryKey() &&
-        const_expr->val_.CompareEquals(ValueFactory::GetZeroValueByType(const_expr->GetReturnType())) ==
-            CmpBool::CmpFalse) {
-      return true;
-    }
-  }
-  return false;
+
+  return std::any_of(
+      update_expr.begin(), update_expr.end(), [&](const std::shared_ptr<AbstractExpression> &expr) -> bool {
+        auto arith_expr = std::dynamic_pointer_cast<ArithmeticExpression>(expr);
+        if (arith_expr == nullptr) {
+          return false;
+        }
+        if (arith_expr->GetChildren().size() != 2) {
+          return false;
+        }
+        auto column_expr = std::dynamic_pointer_cast<ColumnValueExpression>(arith_expr->GetChildAt(0));
+        auto const_expr = std::dynamic_pointer_cast<ConstantValueExpression>(arith_expr->GetChildAt(1));
+        if (column_expr == nullptr || const_expr == nullptr) {
+          return false;
+        }
+        return (column_expr->GetColIdx() == hash_table->GetKeyAttrs()[0] && hash_table->GetMetadata()->IsPrimaryKey() &&
+                const_expr->val_.CompareEquals(ValueFactory::GetZeroValueByType(const_expr->GetReturnType())) ==
+                    CmpBool::CmpFalse);
+      });
 }
-auto UpdateExecutor::CheckPrimaryKeyConflict(Tuple & tuple) -> std::optional<RID>{
+auto UpdateExecutor::CheckPrimaryKeyConflict(Tuple &tuple) -> std::optional<RID> {
   auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-  if(index_info.empty()){
+  if (index_info.empty()) {
     return std::nullopt;
   }
   const auto &primary_idx = index_info[0];
   auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx->index_.get());
-  auto insert_key = tuple.KeyFromTuple(
-      child_executor_->GetOutputSchema(),
-      *primary_hash_table->GetKeySchema(),
-      primary_hash_table->GetKeyAttrs());
+  auto insert_key = tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *primary_hash_table->GetKeySchema(),
+                                       primary_hash_table->GetKeyAttrs());
   // First, check uniqueness of primary key
   std::vector<RID> result{};
   primary_hash_table->ScanKey(insert_key, &result, exec_ctx_->GetTransaction());
-  return result.empty() ? std::nullopt: std::make_optional<RID>(result[0]);
+  return result.empty() ? std::nullopt : std::make_optional<RID>(result[0]);
 }
 auto UpdateExecutor::AtomicInsertNewTuple(Tuple &insert_tuple) -> void {
   auto txn = exec_ctx_->GetTransaction();
   auto insert_ts = txn->GetTransactionTempTs();
-  const auto insert =
-      table_info_->table_->InsertTuple({insert_ts, false},
-                                       insert_tuple,
-                                       exec_ctx_->GetLockManager(),
-                                       txn,
-                                       plan_->GetTableOid());
+  const auto insert = table_info_->table_->InsertTuple({insert_ts, false}, insert_tuple, exec_ctx_->GetLockManager(),
+                                                       txn, plan_->GetTableOid());
   // In project 4, we always assume insert is successful
   BUSTUB_ASSERT(insert.has_value(), "Insert fail!");
   RID insert_rid = insert.value();
   const auto &primary_idx = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-  if(!primary_idx.empty()){
-
+  if (!primary_idx.empty()) {
     BUSTUB_ASSERT(primary_idx.size() == 1, "We only support one index for each table");
     auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx[0]->index_.get());
-    auto insert_key = insert_tuple.KeyFromTuple(
-         child_executor_->GetOutputSchema(),
-         *primary_hash_table->GetKeySchema(),
-         primary_hash_table->GetKeyAttrs());
+    auto insert_key = insert_tuple.KeyFromTuple(child_executor_->GetOutputSchema(), *primary_hash_table->GetKeySchema(),
+                                                primary_hash_table->GetKeyAttrs());
 
     // Try update primary index
     bool try_update_primary_index = primary_hash_table->InsertEntry(insert_key, insert_rid, txn);
 
     // Fail! Other transaction already update index, mark insert tuple as deleted, then Abort
     if (!try_update_primary_index) {
-      table_info_->table_->UpdateTupleMeta({insert_ts,true}, insert.value());
+      table_info_->table_->UpdateTupleMeta({insert_ts, true}, insert.value());
       FakeAbort(txn);
     }
   }
   // Success! Append write set
   txn->AppendWriteSet(table_info_->oid_, insert_rid);
 }
-auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &update_tuple, bool check_slot_deleted) -> void {
+auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &update_tuple, bool check_slot_deleted)
+    -> void {
   auto txn = exec_ctx_->GetTransaction();
   auto txn_manager = exec_ctx_->GetTransactionManager();
   auto modify_ts = txn->GetTransactionTempTs();
@@ -180,13 +169,13 @@ auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &updat
   bool self_uncommitted_transaction = current_meta.ts_ == txn->GetTransactionTempTs();
   bool can_not_see = current_meta.ts_ > txn->GetReadTs();
 
-  if(!self_uncommitted_transaction) {
+  if (!self_uncommitted_transaction) {
     auto current_version_link = txn_manager->GetVersionLink(rid);
     VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
     modified_link.in_progress_ = true;
     bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
     if (!success) {
-       FakeAbort(txn);
+      FakeAbort(txn);
     }
   }
 
@@ -196,7 +185,7 @@ auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &updat
     FakeAbort(txn);
   }
 
-  if(check_slot_deleted && !current_meta.is_deleted_){
+  if (check_slot_deleted && !current_meta.is_deleted_) {
     FakeAbort(txn);
   }
 
@@ -205,9 +194,7 @@ auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &updat
   // If this tuple haven't been modified by this txn yet, append undo log, update link
   if (!self_uncommitted_transaction) {
     auto [modified_tp, modified_fields] =
-        GetTupleModifyFields(&child_executor_->GetOutputSchema(),
-                             &current_tuple,
-                             &update_tuple);
+        GetTupleModifyFields(&child_executor_->GetOutputSchema(), &current_tuple, &update_tuple);
     UndoLog undo_log;
     undo_log.is_deleted_ = current_meta.is_deleted_;
     undo_log.ts_ = current_meta.ts_;
@@ -215,39 +202,36 @@ auto UpdateExecutor::AtomicModifiedTuple(RID &rid, bool do_deleted, Tuple &updat
     undo_log.tuple_ = modified_tp;
     undo_log.prev_version_ = first_undo_version.has_value() ? first_undo_version.value() : UndoLink();
     auto new_first_undo_version = txn->AppendUndoLog(undo_log);
-    //Atomically update link
+    // Atomically update link
     txn_manager->UpdateUndoLink(rid, new_first_undo_version);
   } else {
     if (first_undo_version.has_value() && first_undo_version.value().IsValid()) {
       UndoLog old_undo_log = txn_manager->GetUndoLog(first_undo_version.value());
       UndoLog new_undo_log = old_undo_log;
-      auto before_modified = ReconstructTuple(&child_executor_->GetOutputSchema(),
-                                              current_tuple,
-                                              current_meta,
-                                              {old_undo_log});
+      auto before_modified =
+          ReconstructTuple(&child_executor_->GetOutputSchema(), current_tuple, current_meta, {old_undo_log});
       if (before_modified.has_value()) {
-        auto [modified_tp, modified_fields] = GetTupleModifyFields(
-            &child_executor_->GetOutputSchema(), &before_modified.value(), &update_tuple, &old_undo_log.modified_fields_);
+        auto [modified_tp, modified_fields] =
+            GetTupleModifyFields(&child_executor_->GetOutputSchema(), &before_modified.value(), &update_tuple,
+                                 &old_undo_log.modified_fields_);
         new_undo_log.modified_fields_ = modified_fields;
         new_undo_log.tuple_ = modified_tp;
       }
-      //Atomically update undo log
+      // Atomically update undo log
       txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
     }
   }
 
   // do modify job (don't need lock since we're in snapshot read) only one transaction reach here
-  table_info_->table_->UpdateTupleInPlace({modify_ts,
-                                           do_deleted},
-                                          update_tuple,rid);
+  table_info_->table_->UpdateTupleInPlace({modify_ts, do_deleted}, update_tuple, rid);
   txn->AppendWriteSet(table_info_->oid_, rid);
 }
-auto UpdateExecutor::CheckUncommittedTransactionValid()->void {
+auto UpdateExecutor::CheckUncommittedTransactionValid() -> void {
   auto write_set = exec_ctx_->GetTransaction()->GetWriteSets();
-  for(auto [table_oid,rids]:write_set){
-    for(auto rid:rids){
+  for (auto [table_oid, rids] : write_set) {
+    for (auto rid : rids) {
       auto [meta, tp] = table_info_->table_->GetTuple(rid);
-      if(meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs()){
+      if (meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs()) {
         throw ExecutionException("Update: Uncommitted txn is modified by other txn");
       }
     }

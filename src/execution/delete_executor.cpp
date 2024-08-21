@@ -55,7 +55,7 @@ auto DeleteExecutor::AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void 
   bool self_uncommitted_transaction = current_meta.ts_ == txn->GetTransactionTempTs();
   bool can_not_see = current_meta.ts_ > txn->GetReadTs();
 
-  if(!self_uncommitted_transaction) {
+  if (!self_uncommitted_transaction) {
     auto current_version_link = txn_manager->GetVersionLink(rid);
     VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
     modified_link.in_progress_ = true;
@@ -75,9 +75,7 @@ auto DeleteExecutor::AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void 
   // If this tuple haven't been modified by this txn yet, append undo log, update link
   if (!self_uncommitted_transaction) {
     auto [modified_tp, modified_fields] =
-        GetTupleModifyFields(&child_executor_->GetOutputSchema(),
-                             &current_tuple,
-                             nullptr);
+        GetTupleModifyFields(&child_executor_->GetOutputSchema(), &current_tuple, nullptr);
     UndoLog undo_log;
     undo_log.is_deleted_ = current_meta.is_deleted_;
     undo_log.ts_ = current_meta.ts_;
@@ -85,38 +83,36 @@ auto DeleteExecutor::AtomicModifiedTuple(RID &rid, Tuple &update_tuple) -> void 
     undo_log.tuple_ = modified_tp;
     undo_log.prev_version_ = first_undo_version.has_value() ? first_undo_version.value() : UndoLink();
     auto new_first_undo_version = txn->AppendUndoLog(undo_log);
-    //Atomically update link
+    // Atomically update link
     txn_manager->UpdateUndoLink(rid, new_first_undo_version);
   } else {
     if (first_undo_version.has_value() && first_undo_version.value().IsValid()) {
       UndoLog old_undo_log = txn_manager->GetUndoLog(first_undo_version.value());
       UndoLog new_undo_log = old_undo_log;
-      auto before_modified = ReconstructTuple(&child_executor_->GetOutputSchema(),
-                                              current_tuple,
-                                              current_meta,
-                                              {old_undo_log});
+      auto before_modified =
+          ReconstructTuple(&child_executor_->GetOutputSchema(), current_tuple, current_meta, {old_undo_log});
       if (before_modified.has_value()) {
-        auto [modified_tp, modified_fields] = GetTupleModifyFields(
-            &child_executor_->GetOutputSchema(), &before_modified.value(), &update_tuple, &old_undo_log.modified_fields_);
+        auto [modified_tp, modified_fields] =
+            GetTupleModifyFields(&child_executor_->GetOutputSchema(), &before_modified.value(), &update_tuple,
+                                 &old_undo_log.modified_fields_);
         new_undo_log.modified_fields_ = modified_fields;
         new_undo_log.tuple_ = modified_tp;
       }
-      //Atomically update undo log
+      // Atomically update undo log
       txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
     }
   }
 
   // do modify job (don't need lock since we're in snapshot read) only one transaction reach here
-  table_info_->table_->UpdateTupleInPlace({modify_ts, true},
-                                          update_tuple,rid);
+  table_info_->table_->UpdateTupleInPlace({modify_ts, true}, update_tuple, rid);
   txn->AppendWriteSet(table_info_->oid_, rid);
 }
 auto DeleteExecutor::CheckUncommittedTransactionValid() -> void {
   auto write_set = exec_ctx_->GetTransaction()->GetWriteSets();
-  for(auto [table_oid,rids]:write_set){
-    for(auto rid:rids){
+  for (auto [table_oid, rids] : write_set) {
+    for (auto rid : rids) {
       auto [meta, tp] = table_info_->table_->GetTuple(rid);
-      if(meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs()){
+      if (meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs()) {
         throw ExecutionException("Insert: Uncommitted txn is modified by other txn");
       }
     }
