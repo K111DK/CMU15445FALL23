@@ -149,6 +149,8 @@ class TransactionManager {
 
   std::atomic<txn_id_t> next_txn_id_{TXN_START_ID};
 
+  std::unordered_map<RID, txn_id_t> tuple_lock_;
+
  private:
   /** @brief Verify if a txn satisfies serializability. We will not test this function and you can change / remove it as
    * you want. */

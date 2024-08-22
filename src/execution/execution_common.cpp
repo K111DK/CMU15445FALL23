@@ -281,6 +281,7 @@ auto AtomicModifiedTuple(TableInfo *table_info, Transaction *txn, TransactionMan
   if (!success && current_meta.ts_ != modify_ts) {
     FakeAbort(txn);
   }
+  txn_manager->tuple_lock_.insert(std::make_pair(rid, txn->GetTransactionId()));
 
   // Critical section begin
   // auto [current_meta, current_tuple] = table_info->table_->GetTuple(rid);
@@ -290,10 +291,20 @@ auto AtomicModifiedTuple(TableInfo *table_info, Transaction *txn, TransactionMan
   // Abort if a larger ts modify is committed or Any other transaction is modifying
   bool do_abort = can_not_see && !self_uncommitted_transaction;
   if (do_abort) {
+    current_version_link = txn_manager->GetVersionLink(rid);
+    modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
+    modified_link.in_progress_ = false;
+    success = txn_manager->UpdateVersionLink(rid, modified_link);
+    BUSTUB_ASSERT(success, "version update fail!");
     FakeAbort(txn);
   }
 
   if (check_slot_deleted && !current_meta.is_deleted_) {
+    current_version_link = txn_manager->GetVersionLink(rid);
+    modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
+    modified_link.in_progress_ = false;
+    success = txn_manager->UpdateVersionLink(rid, modified_link);
+    BUSTUB_ASSERT(success, "version update fail!");
     FakeAbort(txn);
   }
 
@@ -327,13 +338,10 @@ auto AtomicModifiedTuple(TableInfo *table_info, Transaction *txn, TransactionMan
     txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
   }
   current_version_link = txn_manager->GetVersionLink(rid);
-  BUSTUB_ASSERT(current_version_link.value().in_progress_, "lock must hold");
-  BUSTUB_ASSERT(table_info->table_->GetTuple(rid).first.ts_ == modify_ts, "ts not modified");
   auto new_version_link = current_version_link.value();
   new_version_link.in_progress_ = false;
   new_version_link.prev_ = first_undo_version.value();
-  success = txn_manager->UpdateVersionLink(rid, new_version_link);
-  BUSTUB_ASSERT(success, "version update fail!");
+  txn_manager->UpdateVersionLink(rid, new_version_link);
 }
 auto CheckUncommittedTransactionValid(TableInfo *table_info, Transaction *txn) -> void {
   auto write_set = txn->GetWriteSets();
