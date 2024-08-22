@@ -28,7 +28,8 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
 void UpdateExecutor::Init() {
   child_executor_->Init();
   delete_done_ = false;
-  primary_index_update_ = CheckPrimaryKeyNeedUpdate(index_info_, plan_->target_expressions_);
+  primary_index_update_ = CheckPrimaryKeyNeedUpdate(index_info_, plan_->target_expressions_).first;
+  primary_index_constant_update_ = CheckPrimaryKeyNeedUpdate(index_info_, plan_->target_expressions_).second;
 }
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   // const TupleMeta delete_meta = {0,true};
@@ -60,6 +61,10 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t {
   auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
   int64_t total_update = 0;
+
+  if(!tuples_to_update.empty() && primary_index_constant_update_){
+    FakeAbort(exec_ctx_->GetTransaction());
+  }
 
   // Delete all update tuple
   for (auto &[snapshot_tuple, rid] : tuples_to_update) {

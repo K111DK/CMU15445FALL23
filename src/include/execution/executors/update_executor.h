@@ -73,5 +73,6 @@ class UpdateExecutor : public AbstractExecutor {
   std::vector<IndexInfo *> index_info_;
   std::atomic_bool delete_done_ = false;
   bool primary_index_update_ = false;
+  bool primary_index_constant_update_ = false;
 };
 }  // namespace bustub
