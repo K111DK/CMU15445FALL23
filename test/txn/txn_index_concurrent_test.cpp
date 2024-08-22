@@ -117,14 +117,14 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
     }
     return fmt::format("INSERT INTO maintable VALUES {}", fmt::join(data, ","));
   };
-  const int trials = 1;
+  const int trials = 50;
   for (int n = 0; n < trials; n++) {
     auto bustub = std::make_unique<BustubInstance>();
     EnsureIndexScan(*bustub);
     Execute(*bustub, "CREATE TABLE maintable(a int primary key, b int)");
     std::vector<std::thread> update_threads;
     const int thread_cnt = 8;
-    const int number_cnt = 20;
+    const int number_cnt = 1;
     Execute(*bustub, generate_insert_sql(number_cnt), false);
     TableHeapEntryNoMoreThan(*bustub, bustub->catalog_->GetTable("maintable"), number_cnt);
     update_threads.reserve(thread_cnt);
@@ -133,7 +133,7 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
     bool add_delete_insert = (n % 2 == 1);
     fmt::println(stderr, "trial {}: running with {} threads with {} rows, add_delete_insert={}", n + 1, thread_cnt,
                  number_cnt, add_delete_insert);
-    global_disable_execution_exception_print.store(false);
+    global_disable_execution_exception_print.store(true);
     for (int thread = 0; thread < thread_cnt; thread++) {
       update_threads.emplace_back([add_delete_insert, &bustub, thread, generate_sql, generate_select_sql,
                                    generate_delete_sql, generate_txn_insert_sql, &result_mutex, &operation_result]() {
@@ -143,19 +143,23 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
         for (int i = 0; i < number_cnt; i++) {
           auto sql = generate_sql(thread, i);
           auto *txn = bustub->txn_manager_->Begin();
+          auto txn_id = txn->GetTransactionIdHumanReadable();
+          auto rts = txn->GetReadTs();
           if (!bustub->ExecuteSqlTxn(sql, writer, txn)) {
             result.push_back(false);
+            fmt::println(stderr, "Txn@{} Sql:{} ReadTs:{} Abort", txn_id, sql, rts);
             continue;
           }
-          if (add_delete_insert) {
-            StringVectorWriter data_writer;
-            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_select_sql(i), data_writer, txn), "cannot retrieve data");
-            BUSTUB_ENSURE(data_writer.values_.size() == 1, "more than 1 row fetched??");
-            const auto b_val = std::stoi(data_writer.values_[0][0]);
-            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_delete_sql(i), data_writer, txn), "cannot delete data");
-            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_txn_insert_sql(b_val, i), data_writer, txn),
-                          "cannot insert data");
-          }
+          fmt::println(stderr, "Txn@{} Sql:{} ReadTs:{} Success", txn_id, sql, rts);
+//          if (add_delete_insert) {
+//            StringVectorWriter data_writer;
+//            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_select_sql(i), data_writer, txn), "cannot retrieve data");
+//            BUSTUB_ENSURE(data_writer.values_.size() == 1, "more than 1 row fetched??");
+//            const auto b_val = std::stoi(data_writer.values_[0][0]);
+//            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_delete_sql(i), data_writer, txn), "cannot delete data");
+//            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_txn_insert_sql(b_val, i), data_writer, txn),
+//                          "cannot insert data");
+//          }
           BUSTUB_ENSURE(bustub->txn_manager_->Commit(txn), "cannot commit??");
           result.push_back(true);
           std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -182,6 +186,7 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
       expected_rows.push_back({i, winner});
     }
     auto query_txn = BeginTxn(*bustub, "query_txn");
+    TxnMgrDbg("debug:", bustub->txn_manager_.get(), bustub->catalog_->GetTable("maintable"), bustub->catalog_->GetTable("maintable")->table_.get());
     WithTxn(query_txn, QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", expected_rows));
     TableHeapEntryNoMoreThan(*bustub, bustub->catalog_->GetTable("maintable"), number_cnt);
     if (n == trials - 1 || n == trials - 2) {

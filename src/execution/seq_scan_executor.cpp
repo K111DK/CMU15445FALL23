@@ -26,7 +26,7 @@ void SeqScanExecutor::Init() { iterator_ = std::make_shared<TableIterator>(info_
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto read_ts = exec_ctx_->GetTransaction()->GetReadTs();
-  auto txn_id_readable = exec_ctx_->GetTransaction()->GetTransactionIdHumanReadable();
+  //auto txn_id_readable = exec_ctx_->GetTransaction()->GetTransactionIdHumanReadable();
 
   while (!iterator_->IsEnd()) {
     auto tp = iterator_->GetTuple().second;
@@ -34,7 +34,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     auto is_deleted = tp_meta.is_deleted_;
 
     // Tuple in heap is modified by other txn
-    if (tp_meta.ts_ != txn_id_readable + TXN_START_ID && tp_meta.ts_ > read_ts) {
+    if (tp_meta.ts_ != exec_ctx_->GetTransaction()->GetTransactionTempTs() && tp_meta.ts_ > read_ts) {
       std::vector<UndoLog> undo_logs;
       // Get all undo logs;
       bool got_valid_record =

@@ -294,6 +294,9 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
     VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
     modified_link.in_progress_ = true;
     bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
+    if(success){
+      std::cout << txn->GetTransactionIdHumanReadable() << " Got In progress \n";
+    }
     if (!success) {
       FakeAbort(txn);
     }
@@ -339,7 +342,8 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
     modified_link.in_progress_ = false;
     txn_manager->UpdateVersionLink(rid, modified_link);
   }
-
+  auto current_version_link = txn_manager->GetVersionLink(rid);
+  BUSTUB_ASSERT(!current_version_link.value().in_progress_, "lock not release");
 }
 auto CheckUncommittedTransactionValid(TableInfo * table_info, Transaction* txn) -> void {
   auto write_set = txn->GetWriteSets();

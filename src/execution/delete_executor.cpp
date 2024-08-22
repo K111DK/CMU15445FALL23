@@ -34,6 +34,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     const auto status = child_executor_->Next(&child_tuple, rid);
 
     if (!status) {
+      CheckUncommittedTransactionValid(table_info_, exec_ctx_->GetTransaction());
       *tuple = Tuple({{Value(INTEGER, total_delete_)}, &GetOutputSchema()});
       delete_done_ = true;
       return true;
@@ -46,7 +47,6 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
                         child_tuple,
                         child_executor_->GetOutputSchema(),
                         false);
-    CheckUncommittedTransactionValid(table_info_, exec_ctx_->GetTransaction());
     total_delete_++;
   }
 

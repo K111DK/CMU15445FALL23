@@ -33,6 +33,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // Get the next tuple
     const auto status = child_executor_->Next(&insert_tuple, rid);
     if (!status) {
+      CheckUncommittedTransactionValid(table_info_, exec_ctx_->GetTransaction());
       update_tuple.emplace_back(INTEGER, total_insert_);
       *tuple = Tuple(update_tuple, &GetOutputSchema());
       insert_done_ = true;
@@ -63,7 +64,6 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
                            child_executor_->GetOutputSchema(),
                            exec_ctx_->GetLockManager());
     }
-    CheckUncommittedTransactionValid(table_info_, exec_ctx_->GetTransaction());
     total_insert_++;
   }
 
