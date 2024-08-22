@@ -91,7 +91,6 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
   running_txns_.UpdateCommitTs(txn->commit_ts_);
   running_txns_.RemoveTxn(txn->read_ts_);
   last_commit_ts_ = commit_ts;
-
   return true;
 }
 

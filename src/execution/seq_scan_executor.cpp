@@ -26,7 +26,7 @@ void SeqScanExecutor::Init() { iterator_ = std::make_shared<TableIterator>(info_
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto read_ts = exec_ctx_->GetTransaction()->GetReadTs();
-  //auto txn_id_readable = exec_ctx_->GetTransaction()->GetTransactionIdHumanReadable();
+  // auto txn_id_readable = exec_ctx_->GetTransaction()->GetTransactionIdHumanReadable();
 
   while (!iterator_->IsEnd()) {
     auto tp = iterator_->GetTuple().second;

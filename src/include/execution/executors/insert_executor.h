@@ -58,7 +58,7 @@ class InsertExecutor : public AbstractExecutor {
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
   TableInfo *table_info_;
-  std::vector<IndexInfo*> index_info_;
+  std::vector<IndexInfo *> index_info_;
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::atomic_int64_t total_insert_ = 0;
   std::atomic_bool insert_done_ = false;

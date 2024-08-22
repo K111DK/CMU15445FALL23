@@ -19,11 +19,10 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)){
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {
   // As of Fall 2022, you DON'T need to implement update executor to have perfect score in project 3 / project 4.
   table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   index_info_ = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-
 }
 
 void UpdateExecutor::Init() {
@@ -52,7 +51,11 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   CheckUncommittedTransactionValid(table_info_, exec_ctx_->GetTransaction());
   *tuple = Tuple({{INTEGER, total_update}}, &GetOutputSchema());
   delete_done_ = true;
-  return true;
+  auto success = total_update != 0;
+  if (!success) {
+    FakeAbort(exec_ctx_->GetTransaction());
+  }
+  return success;
 }
 auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_update) -> int64_t {
   auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
@@ -60,14 +63,8 @@ auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples
 
   // Delete all update tuple
   for (auto &[snapshot_tuple, rid] : tuples_to_update) {
-    AtomicModifiedTuple(table_info_,
-                        exec_ctx_->GetTransaction(),
-                        exec_ctx_->GetTransactionManager(),
-                        rid,
-                        true,
-                        snapshot_tuple,
-                        child_executor_->GetOutputSchema(),
-                        false);
+    AtomicModifiedTuple(table_info_, exec_ctx_->GetTransaction(), exec_ctx_->GetTransactionManager(), rid, true,
+                        snapshot_tuple, child_executor_->GetOutputSchema(), false);
     total_update++;
   }
 
@@ -76,30 +73,18 @@ auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples
     Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(), child_executor_->GetOutputSchema(),
                                        snapshot_tuple, plan_->target_expressions_);
 
-    auto conflict_result = CheckPrimaryKeyConflict(index_info_,
-                                                   exec_ctx_->GetTransaction(),
-                                                   update_tuple,
+    auto conflict_result = CheckPrimaryKeyConflict(index_info_, exec_ctx_->GetTransaction(), update_tuple,
                                                    child_executor_->GetOutputSchema());
 
     // Violate primary key uniqueness;
     if (conflict_result.has_value()) {
       RID insert_rid = conflict_result.value();
-      AtomicModifiedTuple(table_info_,
-                          exec_ctx_->GetTransaction(),
-                          exec_ctx_->GetTransactionManager(),
-                          insert_rid,
-                          false,
-                          update_tuple,
-                          child_executor_->GetOutputSchema(),
-                          true);
+      AtomicModifiedTuple(table_info_, exec_ctx_->GetTransaction(), exec_ctx_->GetTransactionManager(), insert_rid,
+                          false, update_tuple, child_executor_->GetOutputSchema(), true);
     } else {
       // Do insert
-      AtomicInsertNewTuple(table_info_,
-                           index_info_,
-                           exec_ctx_->GetTransaction(),
-                           update_tuple,
-                           child_executor_->GetOutputSchema(),
-                           exec_ctx_->GetLockManager());
+      AtomicInsertNewTuple(table_info_, index_info_, exec_ctx_->GetTransaction(), update_tuple,
+                           child_executor_->GetOutputSchema(), exec_ctx_->GetLockManager());
     }
   }
   return total_update;
@@ -109,14 +94,8 @@ auto UpdateExecutor::NormalUpdate(std::vector<std::pair<Tuple, RID>> &tuples_to_
   for (auto &[snapshot_tuple, rid] : tuples_to_update) {
     Tuple update_tuple = EvaluateTuple(child_executor_->GetOutputSchema(), child_executor_->GetOutputSchema(),
                                        snapshot_tuple, plan_->target_expressions_);
-    AtomicModifiedTuple(table_info_,
-                        exec_ctx_->GetTransaction(),
-                        exec_ctx_->GetTransactionManager(),
-                        rid,
-                        false,
-                        update_tuple,
-                        child_executor_->GetOutputSchema(),
-                        false);
+    AtomicModifiedTuple(table_info_, exec_ctx_->GetTransaction(), exec_ctx_->GetTransactionManager(), rid, false,
+                        update_tuple, child_executor_->GetOutputSchema(), false);
     total_update++;
   }
   return total_update;

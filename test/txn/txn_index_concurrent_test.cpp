@@ -124,7 +124,7 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
     Execute(*bustub, "CREATE TABLE maintable(a int primary key, b int)");
     std::vector<std::thread> update_threads;
     const int thread_cnt = 8;
-    const int number_cnt = 1;
+    const int number_cnt = 20;
     Execute(*bustub, generate_insert_sql(number_cnt), false);
     TableHeapEntryNoMoreThan(*bustub, bustub->catalog_->GetTable("maintable"), number_cnt);
     update_threads.reserve(thread_cnt);
@@ -151,15 +151,13 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
             continue;
           }
           fmt::println(stderr, "Txn@{} Sql:{} ReadTs:{} Success", txn_id, sql, rts);
-//          if (add_delete_insert) {
-//            StringVectorWriter data_writer;
-//            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_select_sql(i), data_writer, txn), "cannot retrieve data");
-//            BUSTUB_ENSURE(data_writer.values_.size() == 1, "more than 1 row fetched??");
-//            const auto b_val = std::stoi(data_writer.values_[0][0]);
-//            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_delete_sql(i), data_writer, txn), "cannot delete data");
-//            BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_txn_insert_sql(b_val, i), data_writer, txn),
-//                          "cannot insert data");
-//          }
+          StringVectorWriter data_writer;
+          BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_select_sql(i), data_writer, txn), "cannot retrieve data");
+          BUSTUB_ENSURE(data_writer.values_.size() == 1, "more than 1 row fetched??");
+          const auto b_val = std::stoi(data_writer.values_[0][0]);
+          BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_delete_sql(i), data_writer, txn), "cannot delete data");
+          BUSTUB_ENSURE(bustub->ExecuteSqlTxn(generate_txn_insert_sql(b_val, i), data_writer, txn),
+                        "cannot insert data");
           BUSTUB_ENSURE(bustub->txn_manager_->Commit(txn), "cannot commit??");
           result.push_back(true);
           std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -186,7 +184,8 @@ TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
       expected_rows.push_back({i, winner});
     }
     auto query_txn = BeginTxn(*bustub, "query_txn");
-    TxnMgrDbg("debug:", bustub->txn_manager_.get(), bustub->catalog_->GetTable("maintable"), bustub->catalog_->GetTable("maintable")->table_.get());
+    TxnMgrDbg("debug:", bustub->txn_manager_.get(), bustub->catalog_->GetTable("maintable"),
+              bustub->catalog_->GetTable("maintable")->table_.get());
     WithTxn(query_txn, QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", expected_rows));
     TableHeapEntryNoMoreThan(*bustub, bustub->catalog_->GetTable("maintable"), number_cnt);
     if (n == trials - 1 || n == trials - 2) {

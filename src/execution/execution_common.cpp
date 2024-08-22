@@ -204,9 +204,8 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
   //   txn3@1 (7, _, _) ts=1
 }
 
-
-auto CheckPrimaryKeyNeedUpdate(std::vector<IndexInfo*> &index_info, const std::vector<std::shared_ptr<AbstractExpression>> &update_expr)
-    -> bool {
+auto CheckPrimaryKeyNeedUpdate(std::vector<IndexInfo *> &index_info,
+                               const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> bool {
   if (index_info.empty()) {
     return false;
   }
@@ -231,23 +230,24 @@ auto CheckPrimaryKeyNeedUpdate(std::vector<IndexInfo*> &index_info, const std::v
                     CmpBool::CmpFalse);
       });
 }
-auto CheckPrimaryKeyConflict(std::vector<IndexInfo*> &index_info, Transaction* txn, Tuple &tuple, const Schema & schema) -> std::optional<RID> {
+auto CheckPrimaryKeyConflict(std::vector<IndexInfo *> &index_info, Transaction *txn, Tuple &tuple, const Schema &schema)
+    -> std::optional<RID> {
   if (index_info.empty()) {
     return std::nullopt;
   }
   const auto &primary_idx = index_info[0];
   auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx->index_.get());
-  auto insert_key = tuple.KeyFromTuple(schema, *primary_hash_table->GetKeySchema(),
-                                       primary_hash_table->GetKeyAttrs());
+  auto insert_key = tuple.KeyFromTuple(schema, *primary_hash_table->GetKeySchema(), primary_hash_table->GetKeyAttrs());
   // First, check uniqueness of primary key
   std::vector<RID> result{};
   primary_hash_table->ScanKey(insert_key, &result, txn);
   return result.empty() ? std::nullopt : std::make_optional<RID>(result[0]);
 }
-auto AtomicInsertNewTuple(TableInfo * table_info, std::vector<IndexInfo*> &index_info, Transaction* txn, Tuple &insert_tuple, const Schema & schema, LockManager * lck_manager) -> void {
+auto AtomicInsertNewTuple(TableInfo *table_info, std::vector<IndexInfo *> &index_info, Transaction *txn,
+                          Tuple &insert_tuple, const Schema &schema, LockManager *lck_manager) -> void {
   auto insert_ts = txn->GetTransactionTempTs();
-  const auto insert = table_info->table_->InsertTuple({insert_ts, false}, insert_tuple, lck_manager,
-                                                       txn, table_info->oid_);
+  const auto insert =
+      table_info->table_->InsertTuple({insert_ts, false}, insert_tuple, lck_manager, txn, table_info->oid_);
   // In project 4, we always assume insert is successful
   BUSTUB_ASSERT(insert.has_value(), "Insert fail!");
   RID insert_rid = insert.value();
@@ -255,8 +255,8 @@ auto AtomicInsertNewTuple(TableInfo * table_info, std::vector<IndexInfo*> &index
   if (!primary_idx.empty()) {
     BUSTUB_ASSERT(primary_idx.size() == 1, "We only support one index for each table");
     auto primary_hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(primary_idx[0]->index_.get());
-    auto insert_key = insert_tuple.KeyFromTuple(schema, *primary_hash_table->GetKeySchema(),
-                                                primary_hash_table->GetKeyAttrs());
+    auto insert_key =
+        insert_tuple.KeyFromTuple(schema, *primary_hash_table->GetKeySchema(), primary_hash_table->GetKeyAttrs());
 
     // Try update primary index
     bool try_update_primary_index = primary_hash_table->InsertEntry(insert_key, insert_rid, txn);
@@ -270,12 +270,20 @@ auto AtomicInsertNewTuple(TableInfo * table_info, std::vector<IndexInfo*> &index
   // Success! Append write set
   txn->AppendWriteSet(table_info->oid_, insert_rid);
 }
-auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionManager * txn_manager, RID &rid, bool do_deleted, Tuple &update_tuple, const Schema & schema, bool check_slot_deleted)
-    -> void {
+auto AtomicModifiedTuple(TableInfo *table_info, Transaction *txn, TransactionManager *txn_manager, RID &rid,
+                         bool do_deleted, Tuple &update_tuple, const Schema &schema, bool check_slot_deleted) -> void {
   auto modify_ts = txn->GetTransactionTempTs();
+  auto current_version_link = txn_manager->GetVersionLink(rid);
+  VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
+  modified_link.in_progress_ = true;
+  bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
+  auto [current_meta, current_tuple] = table_info->table_->GetTuple(rid);
+  if (!success && current_meta.ts_ != modify_ts) {
+    FakeAbort(txn);
+  }
 
   // Critical section begin
-  auto [current_meta, current_tuple] = table_info->table_->GetTuple(rid);
+  // auto [current_meta, current_tuple] = table_info->table_->GetTuple(rid);
   bool self_uncommitted_transaction = current_meta.ts_ == txn->GetTransactionTempTs();
   bool can_not_see = current_meta.ts_ > txn->GetReadTs();
 
@@ -289,19 +297,6 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
     FakeAbort(txn);
   }
 
-  if (!self_uncommitted_transaction) {
-    auto current_version_link = txn_manager->GetVersionLink(rid);
-    VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
-    modified_link.in_progress_ = true;
-    bool success = txn_manager->UpdateVersionLink(rid, modified_link, VersionLinkInProgress);
-    if(success){
-      std::cout << txn->GetTransactionIdHumanReadable() << " Got In progress \n";
-    }
-    if (!success) {
-      FakeAbort(txn);
-    }
-  }
-
   // do modify job (don't need lock since we're in snapshot read) only one transaction reach here
   table_info->table_->UpdateTupleInPlace({modify_ts, do_deleted}, update_tuple, rid);
   txn->AppendWriteSet(table_info->oid_, rid);
@@ -309,43 +304,38 @@ auto AtomicModifiedTuple(TableInfo * table_info, Transaction* txn, TransactionMa
 
   // If this tuple haven't been modified by this txn yet, append undo log, update link
   if (!self_uncommitted_transaction) {
-    auto update_ptr = do_deleted ? nullptr: &update_tuple;
-    auto [modified_tp, modified_fields] =
-        GetTupleModifyFields(&schema, &current_tuple, update_ptr);
+    auto update_ptr = do_deleted ? nullptr : &update_tuple;
+    auto [modified_tp, modified_fields] = GetTupleModifyFields(&schema, &current_tuple, update_ptr);
     UndoLog undo_log;
     undo_log.is_deleted_ = current_meta.is_deleted_;
     undo_log.ts_ = current_meta.ts_;
     undo_log.modified_fields_ = modified_fields;
     undo_log.tuple_ = modified_tp;
     undo_log.prev_version_ = first_undo_version.has_value() ? first_undo_version.value() : UndoLink();
-    auto new_first_undo_version = txn->AppendUndoLog(undo_log);
-    // Atomically update link
-    txn_manager->UpdateUndoLink(rid, new_first_undo_version);
-  } else {
-    if (first_undo_version.has_value() && first_undo_version.value().IsValid()) {
-      UndoLog old_undo_log = txn_manager->GetUndoLog(first_undo_version.value());
-      UndoLog new_undo_log = old_undo_log;
-      auto before_modified =
-          ReconstructTuple(&schema, current_tuple, current_meta, {old_undo_log});
-      if (before_modified.has_value()) {
-        auto [modified_tp, modified_fields] =
-            GetTupleModifyFields(&schema, &before_modified.value(), &update_tuple,
-                                 &old_undo_log.modified_fields_);
-        new_undo_log.modified_fields_ = modified_fields;
-        new_undo_log.tuple_ = modified_tp;
-      }
-      // Atomically update undo log
-      txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
+    first_undo_version = txn->AppendUndoLog(undo_log);
+  } else if (first_undo_version.has_value() && first_undo_version.value().IsValid()) {
+    UndoLog old_undo_log = txn_manager->GetUndoLog(first_undo_version.value());
+    UndoLog new_undo_log = old_undo_log;
+    auto before_modified = ReconstructTuple(&schema, current_tuple, current_meta, {old_undo_log});
+    if (before_modified.has_value()) {
+      auto [modified_tp, modified_fields] =
+          GetTupleModifyFields(&schema, &before_modified.value(), &update_tuple, &old_undo_log.modified_fields_);
+      new_undo_log.modified_fields_ = modified_fields;
+      new_undo_log.tuple_ = modified_tp;
     }
-    auto current_version_link = txn_manager->GetVersionLink(rid);
-    VersionUndoLink modified_link = current_version_link.has_value() ? current_version_link.value() : VersionUndoLink();
-    modified_link.in_progress_ = false;
-    txn_manager->UpdateVersionLink(rid, modified_link);
+    // Atomically update undo log
+    txn->ModifyUndoLog(first_undo_version->prev_log_idx_, new_undo_log);
   }
-  auto current_version_link = txn_manager->GetVersionLink(rid);
-  BUSTUB_ASSERT(!current_version_link.value().in_progress_, "lock not release");
+  current_version_link = txn_manager->GetVersionLink(rid);
+  BUSTUB_ASSERT(current_version_link.value().in_progress_, "lock must hold");
+  BUSTUB_ASSERT(table_info->table_->GetTuple(rid).first.ts_ == modify_ts, "ts not modified");
+  auto new_version_link = current_version_link.value();
+  new_version_link.in_progress_ = false;
+  new_version_link.prev_ = first_undo_version.value();
+  success = txn_manager->UpdateVersionLink(rid, new_version_link);
+  BUSTUB_ASSERT(success, "version update fail!");
 }
-auto CheckUncommittedTransactionValid(TableInfo * table_info, Transaction* txn) -> void {
+auto CheckUncommittedTransactionValid(TableInfo *table_info, Transaction *txn) -> void {
   auto write_set = txn->GetWriteSets();
   for (auto [table_oid, rids] : write_set) {
     for (auto rid : rids) {

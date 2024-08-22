@@ -39,30 +39,18 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       insert_done_ = true;
       return true;
     }
-    auto conflict_result = CheckPrimaryKeyConflict(index_info_,
-                                                   exec_ctx_->GetTransaction(),
-                                                   insert_tuple,
-                                                   child_executor_->GetOutputSchema());;
-
+    auto conflict_result = CheckPrimaryKeyConflict(index_info_, exec_ctx_->GetTransaction(), insert_tuple,
+                                                   child_executor_->GetOutputSchema());
+    ;
 
     // Violate primary key uniqueness;
     if (conflict_result.has_value()) {
-      AtomicModifiedTuple(table_info_,
-                          exec_ctx_->GetTransaction(),
-                          exec_ctx_->GetTransactionManager(),
-                          conflict_result.value(),
-                          false,
-                          insert_tuple,
-                          child_executor_->GetOutputSchema(),
-                          true);
+      AtomicModifiedTuple(table_info_, exec_ctx_->GetTransaction(), exec_ctx_->GetTransactionManager(),
+                          conflict_result.value(), false, insert_tuple, child_executor_->GetOutputSchema(), true);
     } else {
       // Do insert
-      AtomicInsertNewTuple(table_info_,
-                           index_info_,
-                           exec_ctx_->GetTransaction(),
-                           insert_tuple,
-                           child_executor_->GetOutputSchema(),
-                           exec_ctx_->GetLockManager());
+      AtomicInsertNewTuple(table_info_, index_info_, exec_ctx_->GetTransaction(), insert_tuple,
+                           child_executor_->GetOutputSchema(), exec_ctx_->GetLockManager());
     }
     total_insert_++;
   }

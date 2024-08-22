@@ -39,14 +39,8 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       delete_done_ = true;
       return true;
     }
-    AtomicModifiedTuple(table_info_,
-                        exec_ctx_->GetTransaction(),
-                        exec_ctx_->GetTransactionManager(),
-                        *rid,
-                        true,
-                        child_tuple,
-                        child_executor_->GetOutputSchema(),
-                        false);
+    AtomicModifiedTuple(table_info_, exec_ctx_->GetTransaction(), exec_ctx_->GetTransactionManager(), *rid, true,
+                        child_tuple, child_executor_->GetOutputSchema(), false);
     total_delete_++;
   }
 
