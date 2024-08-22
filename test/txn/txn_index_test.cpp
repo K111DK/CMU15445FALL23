@@ -268,6 +268,8 @@ TEST(TxnIndexTest, UpdatePrimaryKeyTest) {  // NOLINT
   WithTxn(txn3, QueryIndex(*bustub, _var, _txn, query, "col1", std::vector<int>{0, 1, 2, 3, 4, 5},
                            IntResult{{0, 0}, {1, 0}, {2, 0}, {3, 0}, {}, {}}));
   WithTxn(txn3, CommitTxn(*bustub, _var, _txn));
+  auto txn4 = BeginTxn(*bustub, "txn4");
+  WithTxn(txn4, ExecuteTxn(*bustub, _var, _txn, "UPDATE maintable SET col1 = 1"));
   // hidden tests...
 }
 

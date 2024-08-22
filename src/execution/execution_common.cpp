@@ -204,43 +204,41 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
   //   txn3@1 (7, _, _) ts=1
 }
 
-
 /**
  * Return <is pk update ?, is all same update ?>
  * */
 auto CheckPrimaryKeyNeedUpdate(std::vector<IndexInfo *> &index_info,
-                               const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> std::pair<bool, bool> {
+                               const std::vector<std::shared_ptr<AbstractExpression>> &update_expr)
+    -> std::pair<bool, bool> {
   if (index_info.empty()) {
     return {false, false};
   }
   auto hash_table = dynamic_cast<HashTableIndexForTwoIntegerColumn *>(index_info[0]->index_.get());
   auto primary_key_col_idx = hash_table->GetKeyAttrs()[0];
   BUSTUB_ASSERT(primary_key_col_idx < update_expr.size(), "pk doesn't exists");
-  std::shared_ptr<AbstractExpression> pk_expr = update_expr[primary_key_col_idx];
+  const std::shared_ptr<AbstractExpression> &pk_expr = update_expr.at(primary_key_col_idx);
+  const std::shared_ptr<ConstantValueExpression> &const_v_expr =
+      std::dynamic_pointer_cast<ConstantValueExpression>(pk_expr);
+  if (const_v_expr != nullptr) {
+    return {true, true};
+  }
+
   auto arith_expr = std::dynamic_pointer_cast<ArithmeticExpression>(pk_expr);
-  if(arith_expr == nullptr){
+  if (arith_expr == nullptr) {
     return {false, false};
   }
   // pk_col = col + const (not 0)
-  if(arith_expr->GetChildren().size() == 2){
+  if (arith_expr->GetChildren().size() == 2) {
     auto column_expr = std::dynamic_pointer_cast<ColumnValueExpression>(arith_expr->GetChildAt(0));
     auto const_expr = std::dynamic_pointer_cast<ConstantValueExpression>(arith_expr->GetChildAt(1));
     if (column_expr != nullptr || const_expr != nullptr) {
-      if(const_expr->val_.CompareEquals(ValueFactory::GetZeroValueByType(const_expr->GetReturnType())) ==
-          CmpBool::CmpFalse){
-        return { true, false};
+      if (const_expr->val_.CompareEquals(ValueFactory::GetZeroValueByType(const_expr->GetReturnType())) ==
+          CmpBool::CmpFalse) {
+        return {true, false};
       }
     }
   }
-
-  // pk_col = const
-  if(arith_expr->GetChildren().size() == 1){
-    auto const_expr = std::dynamic_pointer_cast<ConstantValueExpression>(arith_expr->GetChildAt(1));
-    if(const_expr!= nullptr){
-      return { true, true};
-    }
-  }
-  return { false, false};
+  return {false, false};
 }
 auto CheckPrimaryKeyConflict(std::vector<IndexInfo *> &index_info, Transaction *txn, Tuple &tuple, const Schema &schema)
     -> std::optional<RID> {

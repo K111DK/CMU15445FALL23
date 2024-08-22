@@ -43,7 +43,8 @@ auto VersionLinkInProgress(std::optional<VersionUndoLink> version_link) -> bool;
 auto CheckPrimaryKeyGlobalUpdate(std::vector<IndexInfo *> &index_info,
                                  const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> bool;
 auto CheckPrimaryKeyNeedUpdate(std::vector<IndexInfo *> &index_info,
-                               const std::vector<std::shared_ptr<AbstractExpression>> &update_expr) -> std::pair<bool, bool>;
+                               const std::vector<std::shared_ptr<AbstractExpression>> &update_expr)
+    -> std::pair<bool, bool>;
 auto CheckPrimaryKeyConflict(std::vector<IndexInfo *> &index_info, Transaction *txn, Tuple &tuple, const Schema &schema)
     -> std::optional<RID>;
 auto AtomicInsertNewTuple(TableInfo *table_info, std::vector<IndexInfo *> &index_info, Transaction *txn,

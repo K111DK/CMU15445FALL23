@@ -62,7 +62,7 @@ auto UpdateExecutor::PrimaryKeyUpdate(std::vector<std::pair<Tuple, RID>> &tuples
   auto index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
   int64_t total_update = 0;
 
-  if(!tuples_to_update.empty() && primary_index_constant_update_){
+  if (!tuples_to_update.empty() && primary_index_constant_update_) {
     FakeAbort(exec_ctx_->GetTransaction());
   }
 
